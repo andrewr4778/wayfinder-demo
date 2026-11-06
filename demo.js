@@ -967,26 +967,27 @@ const STEPS = [
   },
   {
     async play(){
-      say(11, 'Make it yours', 'Pick a theme, a font, the text size and colour. Everything repaints live, from the grid to every panel.');
+      say(11, 'Make it yours', 'Wayfinder can look however you like: themes, fonts, text size and colour, all from one panel.');
       spot('#settings-btn', { round:true, pad:6 });
       await tsleep(1000);
       await press('#settings-btn', { round:true });
       await tsleep(420);
       spot('#theme-grid', { pad:8 });
-      say(11, 'Make it yours', 'Pick any theme you like. The whole hub repaints the moment you click.');
-      const theme0 = look.theme;
+      say(11, 'Make it yours', 'Try one: click any theme and the whole hub repaints on the spot.');
+      const themeCard = id => () => q('#theme-grid [onclick="setTheme(\'' + id + '\')"]');
       await yourTurn('#theme-grid', {
         pad:8, label:'Your turn: pick a theme',
-        done: () => look.theme !== theme0,
-        demo: () => tap(() => q('#theme-grid [onclick="setTheme(\'' + (theme0 === 'forest' ? 'blueprint' : 'forest') + '\')"]')),
+        done: () => look.theme !== DEFAULT_THEME,
+        demo: () => tap(themeCard('forest')),
       });
-      say(11, 'Make it yours', 'Now a font. There are more than twenty to choose from.');
-      const font0 = q('#set-font').value;
-      await choose('#set-font', v => v !== font0, 'Your turn: pick a font', () => setFont(q('#set-font').value), 'georgia');
-      say(11, 'Make it yours', 'Keep it, or change it any time from this panel. Replaying the tour puts the default look back.');
-      await tsleep(1500);
+      await tsleep(900);
+      // a quick taste only: the tour always carries on in the default look
+      say(11, 'Make it yours', 'That is all it takes. Back to the default for the rest of the tour. You can change it any time from here.');
+      await tsleep(900);
+      await tap(themeCard(DEFAULT_THEME));
+      await tsleep(1200);
     },
-    after(){ closeSheet('settings-sheet'); },
+    after(){ if(look.theme !== DEFAULT_THEME) setTheme(DEFAULT_THEME); closeSheet('settings-sheet'); },
   },
   {
     async play(){
