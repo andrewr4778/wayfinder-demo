@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Wayfinder Demo</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <link rel="icon" type="image/svg+xml" href="logo.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<!-- the Wayfinder mark, drawn once and reused with <use href="#wf-logo">; it takes the colour of its parent -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <path id="wf-orbit" transform="rotate(-28 50 50)" d="M4 50 A46 21 0 1 0 91.7 40.6 L85.6 43.4 A41.5 15.5 0 1 1 7.5 50 Z"/>
+    <mask id="wf-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
+      <rect width="100" height="100" fill="#fff"/>
+      <use href="#wf-orbit" fill="none" stroke="#000" stroke-width="6"/>
+    </mask>
+  </defs>
+  <symbol id="wf-logo" viewBox="0 0 100 100">
+    <g fill="currentColor">
+      <g mask="url(#wf-cut)">
+        <circle cx="50" cy="50" r="30" fill="none" stroke="currentColor" stroke-width="7"/>
+        <path d="M50 3 L57 20 L43 20 Z M50 97 L43 80 L57 80 Z M5 50 L20 43.5 L20 56.5 Z M95 50 L80 56.5 L80 43.5 Z"/>
+        <path d="M36.2 29.8 C42 36 46 43.5 50 43.5 C54 43.5 58 36 63.8 29.8 L70.2 36.2 C64 42 56.5 46 56.5 50 C56.5 54 64 58 70.2 63.8 L63.8 70.2 C58 64 54 56.5 50 56.5 C46 56.5 42 64 36.2 70.2 L29.8 63.8 C36 58 43.5 54 43.5 50 C43.5 46 36 42 29.8 36.2 Z"/>
+      </g>
+      <use href="#wf-orbit"/>
+    </g>
+  </symbol>
+</svg>
+<div id="sky" aria-hidden="true"><i class="band"></i><i class="dust"></i></div>
+
+<div class="history-bar">
+  <button class="hist-btn" id="undo-btn" onclick="doUndo()" aria-label="Undo" disabled>
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M9 7H15.5a4.5 4.5 0 010 9H10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 4L8.5 7 12 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <button class="hist-btn" id="redo-btn" onclick="doRedo()" aria-label="Redo" disabled>
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M15 7H8.5a4.5 4.5 0 100 9H14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 4l3.5 3L12 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+</div>
+
+<div class="wrap">
+  <div class="topbar">
+    <h1 class="greet"><span id="greet-name">Welcome</span><span class="sub" id="today-line"></span></h1>
+    <div class="topbar-actions">
+      <button class="btn btn-sm btn-ghost" id="tour-btn" onclick="replayTour()" hidden>&#9654; Replay tour</button>
+      <button class="btn btn-sm" id="add-bubble-btn" onclick="openNewBubbleModal()">+ Section</button>
+      <button class="alert-btn" id="settings-btn" onclick="openSettings()" title="Appearance" aria-label="Appearance" style="color:var(--text-muted);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.6"/><path d="M12 3.4v2.1M12 18.5v2.1M20.6 12h-2.1M5.5 12H3.4M18.08 5.92l-1.49 1.49M7.41 16.59l-1.49 1.49M18.08 18.08l-1.49-1.49M7.41 7.41L5.92 5.92" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+      <button class="alert-btn" id="trash-btn" onclick="openTrash()" title="Recently deleted sections" aria-label="Recently deleted sections" hidden style="color:var(--text-muted);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M10 4h4M6 7l1 13h10l1-13M10 11v5M14 11v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="dot" id="trash-count" style="background:var(--text-muted);">0</span>
+      </button>
+      <button class="alert-btn" id="todo-btn" onclick="openTasksSheet()" title="To-dos &amp; reminders" aria-label="To-dos and reminders" style="color:var(--text-muted);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4.5 6.5l1.6 1.6 3-3M4.5 12.5l1.6 1.6 3-3M4.5 18.5l1.6 1.6 3-3M12 7h7.5M12 13h7.5M12 19h7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="dot" id="todo-count" hidden>0</span>
+      </button>
+      <button class="alert-btn" id="imp-btn" onclick="openImportant()" title="Important info" aria-label="Important info">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M12 4L2.5 20h19L12 4z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 10v4.2M12 17.1v.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <span class="dot" id="imp-count" hidden>0</span>
+      </button>
+    </div>
+  </div>
+
+  <div id="hub-view">
+    <div class="hub-canvas" id="hub-canvas">
+      <canvas id="ink"></canvas>
+      <div id="hub-world">
+        <svg class="hub-links" id="hub-links" viewBox="-12000 -12000 24000 24000"></svg>
+      </div>
+      <div class="ink-bar" id="ink-bar">
+        <button class="ink-btn on" id="tool-move" onclick="setHubMode('move')" title="Move bubbles">Move</button>
+        <button class="ink-btn" id="tool-draw" onclick="setHubMode('draw')" title="Draw on the grid">Draw</button>
+        <button class="ink-btn" id="tool-erase" onclick="setHubMode('erase')" title="Rub out strokes">Erase</button>
+        <span class="ink-sep" id="ink-tools-sep"></span>
+        <span id="ink-tools" class="ink-hidden" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+          <span id="ink-swatches" style="display:flex; gap:5px;"></span>
+          <input class="ink-size" id="ink-size" type="range" min="1" max="18" value="3" aria-label="Brush size" oninput="inkWidth = +this.value">
+          <button class="ink-btn" onclick="clearInk()" title="Clear the drawing">Clear</button>
+        </span>
+      </div>
+      <div class="zoom-bar">
+        <button class="zoom-btn" onclick="zoomBy(1/1.25)" title="Zoom out">&minus;</button>
+        <span class="zoom-level mono" id="zoom-level">100%</span>
+        <button class="zoom-btn" onclick="zoomBy(1.25)" title="Zoom in">+</button>
+        <button class="zoom-btn" onclick="resetView()" title="Back to the middle">&#9678;</button>
+      </div>
+      <div class="hub-hint" id="hub-hint">Scroll to move around &middot; pinch or &#8984;-scroll to zoom &middot; drag a bubble to rearrange</div>
+    </div>
+  </div>
+
+  <div id="section-view" hidden>
+    <div class="sec-head">
+      <div class="sec-title-wrap" id="sec-title-wrap">
+        <button class="btn btn-sm btn-ghost" onclick="goHub()" title="Back to hub">‹ Hub</button>
+        <span class="sec-dot" id="sec-dot"></span>
+        <input class="sec-title" id="sec-title" aria-label="Section name">
+      </div>
+      <div class="sec-actions">
+        <button class="btn btn-sm" onclick="openHelperForDesign()">Ask Atlas to design this</button>
+        <button class="icon-btn" onclick="deleteCurrentBubble()" title="Delete section">✕</button>
+      </div>
+    </div>
+    <div class="widget-grid" id="widget-grid"></div>
+  </div>
+</div>
+
+<div class="helper-dock">
+  <div class="activity" id="activity" hidden>
+    <div class="act-head">
+      <span class="act-label">What I'm doing</span>
+      <span class="act-timer mono" id="act-timer"></span>
+    </div>
+    <div class="act-status" id="act-status"></div>
+    <ul class="act-steps" id="act-steps"></ul>
+    <div class="act-foot" id="act-foot">
+      <button class="btn btn-sm" onclick="openHelper()">Open chat</button>
+      <button class="btn btn-sm" onclick="stopHelper()">Stop</button>
+    </div>
+  </div>
+  <div class="thought" id="thought" hidden>
+    <button class="icon-btn t-close" onclick="hideThought()" aria-label="Dismiss">✕</button>
+    <button class="icon-btn t-close" onclick="think(true)" aria-label="New thought" title="Think again">↻</button>
+    <span class="t-label">Atlas</span>
+    <span id="thought-text"></span>
+  </div>
+  <div class="dock-row">
+  <button class="helper-bubble" id="helper-bubble" onclick="openHelper()" title="Ask Atlas" hidden>
+    <span class="ring"></span>
+    <svg viewBox="0 0 100 100" aria-hidden="true"><use href="#wf-logo"/></svg>
+  </button>
+  </div>
+</div>
+
+<div class="sheet" id="helper-sheet">
+  <div class="sheet-back" onclick="closeHelper()"></div>
+  <div class="sheet-card">
+    <div class="sheet-head">
+      <div>
+        <h3>Atlas</h3>
+        <div class="sub" id="helper-context">Your whole hub</div>
+        <div class="helper-demo-note">Demo mode: understands a handful of commands</div>
+      </div>
+      <button class="icon-btn" onclick="closeHelper()" aria-label="Close">✕</button>
+    </div>
+    <div class="chat-body" id="chat-body"></div>
+    <div class="sheet-foot">
+      <div class="suggests" id="suggests"></div>
+      <div class="pending" id="pending" hidden></div>
+      <div class="composer">
+        <button class="attach-btn" id="attach-btn" onclick="document.getElementById('file-input').click()" title="Attach a photo, PDF, doc or text file" hidden>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M17.5 8.5L9.9 16.1a3 3 0 01-4.24-4.24l8.49-8.49a2 2 0 012.83 2.83l-8.49 8.49a1 1 0 01-1.41-1.41l7.07-7.07" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <input type="file" id="file-input" multiple style="display:none" onchange="onFilesChosen(this.files); this.value='';">
+        <textarea class="textarea" id="chat-input" rows="1" placeholder="Ask, or tell it what to build…"></textarea>
+        <button class="btn btn-primary" id="send-btn" onclick="onSendClick()" style="height:38px;">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sheet" id="tasks-sheet">
+  <div class="sheet-back" onclick="closeSheet('tasks-sheet')"></div>
+  <div class="sheet-card">
+    <div class="sheet-head">
+      <div><h3>To-dos &amp; Reminders</h3><div class="sub" id="tasks-sub"></div></div>
+      <button class="icon-btn" onclick="closeSheet('tasks-sheet')" aria-label="Close">✕</button>
+    </div>
+    <div class="sheet-body" id="tasks-body"></div>
+    <div class="sheet-foot">
+      <input class="input" id="new-task-text" placeholder="Add a to-do or reminder…" onkeydown="if(event.key==='Enter') submitTask()">
+      <div class="row">
+        <input class="input" type="date" id="new-task-due" style="flex:1;">
+        <select class="select" id="new-task-section" style="flex:1;"></select>
+        <button class="btn btn-primary btn-sm" onclick="submitTask()">Add</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sheet" id="imp-sheet">
+  <div class="sheet-back" onclick="closeSheet('imp-sheet')"></div>
+  <div class="sheet-card">
+    <div class="sheet-head">
+      <div><h3>Important info</h3><div class="sub">Things you should not have to search for</div></div>
+      <button class="icon-btn" onclick="closeSheet('imp-sheet')" aria-label="Close">✕</button>
+    </div>
+    <div class="sheet-body" id="imp-body"></div>
+    <div class="sheet-foot">
+      <input class="input" id="new-imp" placeholder="e.g. Student ID 1234, rent due the 1st…" onkeydown="if(event.key==='Enter') submitImportant()">
+      <button class="btn btn-primary btn-sm" onclick="submitImportant()">Pin it</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet" id="settings-sheet">
+  <div class="sheet-back" onclick="closeSheet('settings-sheet')"></div>
+  <div class="sheet-card">
+    <div class="sheet-head">
+      <div><h3>Appearance</h3><div class="sub">Make it look how you want</div></div>
+      <button class="icon-btn" onclick="closeSheet('settings-sheet')" aria-label="Close">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div class="field">
+        <label>Theme</label>
+        <div class="theme-grid" id="theme-grid"></div>
+      </div>
+      <div class="field">
+        <label>Font</label>
+        <select class="select" id="set-font" onchange="setFont(this.value)"></select>
+        <div class="font-sample" id="font-sample">The quick brown fox jumps over the lazy dog — 0123456789</div>
+      </div>
+      <div class="field">
+        <label>Text size · <span class="mono" id="size-read"></span></label>
+        <input type="range" class="ink-size" style="width:100%" id="set-size" min="80" max="140" step="5"
+               oninput="setScale(this.value)">
+      </div>
+      <div class="field">
+        <label>Text colour</label>
+        <div class="row" style="flex-wrap:wrap; gap:7px;" id="text-colors"></div>
+      </div>
+      <button class="btn btn-sm" style="align-self:flex-start;" onclick="resetLook()">Reset to theme defaults</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet" id="trash-sheet">
+  <div class="sheet-back" onclick="closeSheet('trash-sheet')"></div>
+  <div class="sheet-card">
+    <div class="sheet-head">
+      <div><h3>Recently deleted</h3><div class="sub">Sections you removed — restore any of them</div></div>
+      <button class="icon-btn" onclick="closeSheet('trash-sheet')" aria-label="Close">✕</button>
+    </div>
+    <div class="sheet-body" id="trash-body"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+
+<div id="tour-block" hidden></div>
+<div id="tour-shade" hidden></div>
+<div id="tour-spot" hidden></div>
+<div id="tour-cursor" hidden aria-hidden="true">
+  <svg viewBox="0 0 24 30" fill="none"><path d="M3 2l18 15.5-8.2.9 4.6 9.3-3.6 1.8-4.6-9.4L3 25.6V2z" fill="#111" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>
+</div>
+
+<div id="tour-card" hidden role="status" aria-live="polite">
+  <div class="tc-top">
+    <span class="tc-step"><span id="tc-step"></span><span class="tc-tag" id="tc-replay-tag" hidden>Replay</span></span>
+    <button class="tc-skip" onclick="skipTour()">Skip tour</button>
+  </div>
+  <div class="tc-track"><i id="tc-bar"></i></div>
+  <h3 id="tc-title"></h3>
+  <p id="tc-body"></p>
+  <div class="tc-acts">
+    <span class="tc-wait" id="tc-wait"><span class="dots"><i></i><i></i><i></i></span><span id="tc-wait-text">Watch</span></span>
+    <button class="btn btn-sm" id="tc-again" onclick="tourAgain()" hidden>&#8634; Show again</button>
+    <button class="btn btn-primary btn-sm" id="tc-next" onclick="tourNext()" hidden>Next</button>
+  </div>
+</div>
+
+<div id="tour-welcome" class="tw" role="dialog" aria-modal="true" aria-label="Welcome to Wayfinder" tabindex="0">
+  <div class="tw-inner" id="tw-hello">
+    <div class="tw-mark" aria-hidden="true">
+      <svg viewBox="0 0 100 100" aria-hidden="true"><use href="#wf-logo"/></svg>
+    </div>
+    <h1 class="tw-title">Welcome to Wayfinder</h1>
+    <p class="tw-sub">School, Work, Financials, all on one hub.<br>Take a two-minute guided tour.</p>
+    <div class="tw-hint"><span>Click anywhere to begin</span></div>
+  </div>
+  <form class="tw-card" id="tw-name" hidden autocomplete="off">
+    <span class="tw-eyebrow">Before we start</span>
+    <h2>What should we call you?</h2>
+    <p> Wayfinder wants to know your name.</p>
+    <input class="input" id="tw-name-input" name="tw-name-input" placeholder="Your first name" maxlength="40" autocomplete="given-name">
+    <button class="btn btn-primary" type="submit">Start the tour</button>
+    <button class="btn btn-ghost btn-sm" type="button" id="tw-skip">Skip the tour and look around</button>
+  </form>
+  <div class="tw-credit">A demo by Andrew Rodriguez</div>
+</div>
+
+<div id="tour-done" class="tw" hidden role="dialog" aria-modal="true" aria-labelledby="td-title">
+  <div class="tw-card">
+    <span class="tw-eyebrow">Tour complete</span>
+    <h2 id="td-title">That is Wayfinder.</h2>
+    <p>Everything you just watched is live. Open bubbles, add your own, draw on the map or ask Atlas something. Nothing here is saved, so you cannot break it.</p>
+    <div class="td-acts">
+      <button class="btn btn-primary" id="td-explore" onclick="closeDone()">Explore on my own</button>
+      <button class="btn" onclick="replayTour()">Replay tour</button>
+    </div>
+    <div class="td-credit">Designed and built by Andrew Rodriguez.</div>
+  </div>
+</div>
+
+<div id="modal"><div class="modal-back" onclick="if(event.target===this) closeModal()"><div class="modal-card" id="modal-card"></div></div></div>
+
+<!-- order matters: app.js defines the app, demo.js uses it and calls init() -->
+<script src="app.js"></script>
+<script src="demo.js"></script>
+</body>
+</html>

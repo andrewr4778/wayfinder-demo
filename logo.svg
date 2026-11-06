@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="color:#1d2127">
+  <defs>
+    <path id="wf-orbit" transform="rotate(-28 50 50)" d="M4 50 A46 21 0 1 0 91.7 40.6 L85.6 43.4 A41.5 15.5 0 1 1 7.5 50 Z"/>
+    <mask id="wf-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
+      <rect width="100" height="100" fill="#fff"/>
+      <use href="#wf-orbit" fill="none" stroke="#000" stroke-width="6"/>
+    </mask>
+  </defs>
+  <g fill="currentColor">
+      <g mask="url(#wf-cut)">
+        <circle cx="50" cy="50" r="30" fill="none" stroke="currentColor" stroke-width="7"/>
+        <path d="M50 3 L57 20 L43 20 Z M50 97 L43 80 L57 80 Z M5 50 L20 43.5 L20 56.5 Z M95 50 L80 56.5 L80 43.5 Z"/>
+        <path d="M36.2 29.8 C42 36 46 43.5 50 43.5 C54 43.5 58 36 63.8 29.8 L70.2 36.2 C64 42 56.5 46 56.5 50 C56.5 54 64 58 70.2 63.8 L63.8 70.2 C58 64 54 56.5 50 56.5 C46 56.5 42 64 36.2 70.2 L29.8 63.8 C36 58 43.5 54 43.5 50 C43.5 46 36 42 29.8 36.2 Z"/>
+      </g>
+      <use href="#wf-orbit"/>
+    </g>
+</svg>
