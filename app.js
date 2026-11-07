@@ -179,7 +179,37 @@ function screenToWorld(sx, sy){
   return [ cam.x + (sx - r.left - r.width/2) / cam.z,
            cam.y + (sy - r.top  - r.height/2) / cam.z ];
 }
+/* The map has edges. Its size is fixed (big enough for the sections and the
+   hidden story scenes in the corners) and grows only if sections are placed
+   further out. You can't pan past an edge, and zooming out stops once the
+   whole map fills the view. */
+const WORLD = { x0: -3000, x1: 2700, y0: -1800, y1: 1800 };
+function worldBounds(){
+  const b = { x0: WORLD.x0, x1: WORLD.x1, y0: WORLD.y0, y1: WORLD.y1 };
+  bubbleEls.forEach(el => {
+    if(!el._pos) return;
+    const r = (el._r || R_SEC) + 300;
+    b.x0 = Math.min(b.x0, el._pos.x - r); b.x1 = Math.max(b.x1, el._pos.x + r);
+    b.y0 = Math.min(b.y0, el._pos.y - r); b.y1 = Math.max(b.y1, el._pos.y + r);
+  });
+  return b;
+}
+function clampCamera(){
+  const r = hubRect();
+  if(!r.width || !r.height) return;
+  const b = worldBounds(), bw = b.x1 - b.x0, bh = b.y1 - b.y0;
+  cam.z = clamp(cam.z, Math.max(ZMIN, Math.min(r.width / bw, r.height / bh)), ZMAX);
+  const hw = r.width / 2 / cam.z, hh = r.height / 2 / cam.z;
+  cam.x = bw > hw * 2 ? clamp(cam.x, b.x0 + hw, b.x1 - hw) : (b.x0 + b.x1) / 2;
+  cam.y = bh > hh * 2 ? clamp(cam.y, b.y0 + hh, b.y1 - hh) : (b.y0 + b.y1) / 2;
+}
 function applyCamera(){
+  clampCamera();
+  if(window.wfPetals) window.wfPetals.moved();     // safe even before the petals code has loaded
+  if(window.wfAscii) window.wfAscii.moved();
+  if(window.wfSnow) window.wfSnow.moved();
+  if(window.wfStory) window.wfStory.moved();
+  if(window.wfAstronaut) window.wfAstronaut.moved();
   const world = document.getElementById('hub-world');
   if(world) world.style.transform = 'scale(' + cam.z + ') translate(' + (-cam.x) + 'px,' + (-cam.y) + 'px)';
   const r = hubRect();
@@ -207,7 +237,93 @@ function applyCamera(){
   if(lvl) lvl.textContent = Math.round(cam.z * 100) + '%';
   redrawInk();
   saveCam();
+  scheduleMinimap();
 }
+
+/* ---- the mini-map ----
+   Pops up in the corner once the sections are mostly out of view: the whole
+   map, a dot for every section in its colour, Cosmo in the middle, and a box
+   for where you are looking. Click or drag on it to go there; "Back to
+   sections" flies home. It never shows the hidden story scenes. */
+let minimapRaf = 0;
+function scheduleMinimap(){ if(!minimapRaf) minimapRaf = requestAnimationFrame(() => { minimapRaf = 0; drawMinimap(); }); }
+function sectionsBox(){                       // the part of the map the sections take up
+  let b = { x0: -R_CEN, x1: R_CEN, y0: -R_CEN, y1: R_CEN };
+  bubbleEls.forEach(el => {
+    if(!el._pos) return;
+    const r = el._r || R_SEC;
+    b = { x0: Math.min(b.x0, el._pos.x - r), x1: Math.max(b.x1, el._pos.x + r), y0: Math.min(b.y0, el._pos.y - r), y1: Math.max(b.y1, el._pos.y + r) };
+  });
+  return b;
+}
+function minimapScale(cv){
+  const b = worldBounds(), W = cv.clientWidth, H = cv.clientHeight;
+  const s = Math.min(W / (b.x1 - b.x0), H / (b.y1 - b.y0));
+  return { b, s, ox: (W - (b.x1 - b.x0) * s) / 2 - b.x0 * s, oy: (H - (b.y1 - b.y0) * s) / 2 - b.y0 * s };
+}
+function drawMinimap(){
+  const box = document.getElementById('minimap'), cv = document.getElementById('minimap-canvas');
+  if(!box || !cv) return;
+  const r = hubRect();
+  if(view !== 'hub' || !r.width){ box.hidden = true; return; }
+  // how much of the sections area is still on screen
+  const hw = r.width / 2 / cam.z, hh = r.height / 2 / cam.z;
+  const v = { x0: cam.x - hw, x1: cam.x + hw, y0: cam.y - hh, y1: cam.y + hh }, sb = sectionsBox();
+  const ix = Math.max(0, Math.min(v.x1, sb.x1) - Math.max(v.x0, sb.x0)), iy = Math.max(0, Math.min(v.y1, sb.y1) - Math.max(v.y0, sb.y0));
+  const seen = (ix * iy) / ((sb.x1 - sb.x0) * (sb.y1 - sb.y0));
+  const zoomedRightOut = (v.x1 - v.x0) >= (worldBounds().x1 - worldBounds().x0) * 0.98;
+  box.hidden = seen > 0.6 || zoomedRightOut;
+  if(box.hidden) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2), W = cv.clientWidth, H = cv.clientHeight;
+  if(cv.width !== Math.round(W * dpr)){ cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  const x = cv.getContext('2d');
+  x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  x.clearRect(0, 0, W, H);
+  const css = getComputedStyle(document.documentElement), col = n => css.getPropertyValue(n).trim();
+  const { b, s, ox, oy } = minimapScale(cv), X = wx => ox + wx * s, Y = wy => oy + wy * s;
+  x.fillStyle = col('--surface-2'); x.strokeStyle = col('--border'); x.lineWidth = 1;
+  x.beginPath(); x.roundRect(X(b.x0), Y(b.y0), (b.x1 - b.x0) * s, (b.y1 - b.y0) * s, 6); x.fill(); x.stroke();
+  // links, then sections in their colours, then Cosmo
+  x.strokeStyle = col('--line'); x.lineWidth = 1;
+  sortedBubbles().forEach(bb => {
+    const el = bubbleEls.get(bb.id); if(!el || !el._pos) return;
+    const p = parentOf(bb), pel = p ? bubbleEls.get(p.id) : null, to = pel && pel._pos ? pel._pos : { x: 0, y: 0 };
+    x.beginPath(); x.moveTo(X(el._pos.x), Y(el._pos.y)); x.lineTo(X(to.x), Y(to.y)); x.stroke();
+  });
+  sortedBubbles().forEach(bb => {
+    const el = bubbleEls.get(bb.id); if(!el || !el._pos) return;
+    x.fillStyle = (bb.tone && bb.tone !== 'none') ? getComputedStyle(el).getPropertyValue('--tone').trim() || col('--text-muted') : col('--text-muted');
+    x.beginPath(); x.arc(X(el._pos.x), Y(el._pos.y), Math.max(2.2, (el._r || R_SEC) * s), 0, Math.PI * 2); x.fill();
+  });
+  x.fillStyle = col('--accent');
+  x.beginPath(); x.arc(X(0), Y(0), Math.max(3, R_CEN * s), 0, Math.PI * 2); x.fill();
+  // where you are looking
+  x.fillStyle = col('--accent-soft'); x.strokeStyle = col('--accent'); x.lineWidth = 1.5;
+  x.beginPath(); x.rect(X(v.x0), Y(v.y0), (v.x1 - v.x0) * s, (v.y1 - v.y0) * s); x.fill(); x.stroke();
+}
+/* whenever the map area itself changes size (not just the window), re-fit the
+   drawing layer and the camera to it */
+(function watchHubSize(){
+  const host = document.getElementById('hub-canvas');
+  if(!host || typeof ResizeObserver !== 'function') return;
+  new ResizeObserver(() => { if(typeof sizeInkCanvas === 'function') sizeInkCanvas(); applyCamera(); }).observe(host);
+})();
+(function wireMinimap(){
+  const cv = document.getElementById('minimap-canvas');
+  if(!cv) return;
+  let dragging = false;
+  const go = (e, glide) => {
+    const rect = cv.getBoundingClientRect(), { s, ox, oy } = minimapScale(cv);
+    const wx = (e.clientX - rect.left - ox) / s, wy = (e.clientY - rect.top - oy) / s;
+    if(glide && typeof animateCam === 'function') animateCam(wx, wy, cam.z, 420);
+    else { cam.x = wx; cam.y = wy; applyCamera(); }
+  };
+  cv.addEventListener('pointerdown', e => { dragging = true; try{ cv.setPointerCapture(e.pointerId); }catch(err){} go(e, true); });
+  cv.addEventListener('pointermove', e => { if(dragging && e.buttons) go(e, false); });
+  const stop = () => { dragging = false; };
+  cv.addEventListener('pointerup', stop); cv.addEventListener('pointercancel', stop);
+  addEventListener('resize', scheduleMinimap);
+})();
 /* zoom so the world point under the cursor stays put */
 function zoomAt(sx, sy, factor){
   const z0 = cam.z;
@@ -272,7 +388,7 @@ function attachCamera(){
 
   host.addEventListener('pointerdown', e => {
     if(hubMode !== 'move') return;                 // drawing owns the surface
-    if(e.target.closest && e.target.closest('.bubble, .ink-bar, .zoom-bar')) return;
+    if(e.target.closest && e.target.closest('.bubble, .ink-bar, .zoom-bar, .minimap')) return;
     activePointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
     try{ host.setPointerCapture(e.pointerId); }catch(err){}
     if(activePointers.size === 1){
@@ -324,13 +440,13 @@ function renderHub(){
     center = document.createElement('div');
     center.className = 'bubble center';
     center.id = 'bubble-center';
-    center.onclick = () => openHelper();      // the middle of the map is Atlas
+    center.onclick = () => openHelper();      // the middle of the map is Cosmo
     attachTilt(center);
     makeBubble(center);
     canvas.appendChild(center);
   }
-  const centerHtml = `<span class="b-atlas" aria-hidden="true"><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#wf-logo"/></svg></span>
-    <span class="b-name">Atlas</span>
+  const centerHtml = `<span class="b-cosmo" aria-hidden="true"><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#wf-logo"/></svg></span>
+    <span class="b-name">Cosmo</span>
     <span class="b-meta">Ask me anything</span>`;
   if(center._html !== centerHtml){ center.innerHTML = centerHtml; center._html = centerHtml; }
 
@@ -356,6 +472,8 @@ function renderHub(){
     const cls = ('bubble section tone-' + (b.tone || 'teal') + ''
       + (keep ? ' ' + keep : ''));
     if(el.className !== cls) el.className = cls;
+    const tint = String(tintOf(b));
+    if(el.style.getPropertyValue('--tint') !== tint) el.style.setProperty('--tint', tint);
     const n = (b.widgets || []).length, t = tasksFor(b.id).length;
     const bits = [];
     if(n) bits.push(n + (n === 1 ? ' panel' : ' panels'));
@@ -430,13 +548,13 @@ function drawLinks(spots){
   if(svg) svg.innerHTML = lines;
 }
 /* a segment between two circles, stopping at each rim rather than at the centre */
-function linkLine(from, fr, to, tr, toAtlas){
+function linkLine(from, fr, to, tr, toCosmo){
   const dx = from.x - to.x, dy = from.y - to.y;
   const len = Math.hypot(dx, dy) || 1;
   const sx = to.x + dx/len * tr,   sy = to.y + dy/len * tr;
   const ex = from.x - dx/len * fr, ey = from.y - dy/len * fr;
   return '<line x1="' + sx + '" y1="' + sy + '" x2="' + ex + '" y2="' + ey +
-         '" class="' + (toAtlas ? 'atlas' : '') + '"></line>';
+         '" class="' + (toCosmo ? 'cosmo' : '') + '"></line>';
 }
 
 /* Where every bubble sits. Anything already placed keeps its spot; the rest get
@@ -561,6 +679,7 @@ async function setParent(id, parentId, label){
 
 function attachBubbleInteractions(el, b){
   let start = null, moved = false, shake = null, shookLoose = false;
+  el.addEventListener('contextmenu', e => { e.preventDefault(); openTonePicker(b.id); });
   el.addEventListener('pointerdown', e => {
     if(e.button != null && e.button !== 0) return;
     if(e.target.closest && e.target.closest('.b-grip')) return;   // the resize handle
@@ -637,7 +756,7 @@ function attachBubbleInteractions(el, b){
         cols.bubbles.update(b.id, { wx: fx, wy: fy });
         setParent(b.id, landedOn, 'connecting "' + b.name + '" to ' +
           (target ? '"' + target.name + '"' : 'the hub'));
-        toast('Connected "' + b.name + '" to ' + (target ? target.name : 'Atlas'));
+        toast('Connected "' + b.name + '" to ' + (target ? target.name : 'Cosmo'));
       } else {
         const [fx, fy] = nudgeClear(el._pos.x, el._pos.y, b.id);
         el.style.left = fx + 'px'; el.style.top = fy + 'px';
@@ -774,7 +893,6 @@ function nudgeClear(x, y, selfId){
 const THEMES = [
   { id:'clarity',     name:'Clarity',      ink:'#FFFFFF', line:'rgba(0,0,0,0.09)',       dot:'#0071E3' },
   { id:'claritydark', name:'Clarity Space', ink:'#000000', line:'rgba(255,255,255,0.10)', dot:'#0A84FF' },
-  { id:'dark',      name:'Grid Dark',  ink:'#0A0B0C', line:'rgba(255,255,255,0.10)', dot:'#6FBAC4' },
   { id:'paper',     name:'Paper',      ink:'#FBFBFA', line:'rgba(20,24,28,0.13)',    dot:'#2D5F68' },
   { id:'cream',     name:'Cream',      ink:'#F7F1E4', line:'rgba(84,64,38,0.16)',    dot:'#8A5A2B' },
   { id:'blueprint', name:'Blueprint',  ink:'#0E2150', line:'rgba(165,216,255,0.32)', dot:'#38BDF8' },
@@ -782,7 +900,11 @@ const THEMES = [
   { id:'forest',    name:'Forest',     ink:'#0B4734', line:'rgba(220,245,232,0.22)', dot:'#9EE6C2' },
   { id:'warp',      name:'Warp',       ink:'#120F17', line:'rgba(199,85,247,0.22)',  dot:'#C755F7' },
   { id:'mono',      name:'Mono',       ink:'#000000', line:'rgba(146,146,146,0.30)', dot:'#FFFFFF' },
-  { id:'iridescence', name:'Iridescence', ink:'#F9ECFF', line:'rgba(226,110,200,0.32)', dot:'#965CD8' },
+  { id:'ascii',     name:'Horizon',    ink:'#050B24', line:'rgba(56,189,248,0.35)',  dot:'#38BDF8' },
+  { id:'snow',      name:'Snow',       ink:'#0B1426', line:'rgba(200,225,255,0.18)', dot:'#9FD6FF' },
+  { id:'terminal',  name:'Terminal',   ink:'#040704', line:'rgba(167,239,158,0.22)', dot:'#A7EF9E' },
+  { id:'iridescence', name:'Cherry Blossom', ink:'#F9ECFF', line:'rgba(226,110,200,0.32)', dot:'#C9497F' },
+  { id:'custom',    name:'Your image', ink:'#3A3A3C', line:'transparent', dot:'#FFFFFF' },
 ];
 /* Word's familiar faces. Each one asks for the real font first — if Andrew's
    machine has it, that is what he gets — then falls back to a metric-matched
@@ -859,7 +981,833 @@ function paintStars(){
 }
 paintStars();
 
-const RETIRED_THEMES = { glass:'clarity', glassdark:'claritydark', orbit:'clarity', prism:'clarity' };
+/* Shooting stars for Clarity Space: every few seconds, at random, one bright
+   streak with a fading tail crosses the sky. Between them nothing is drawn and
+   nothing runs. Off for reduced motion, in other themes and in hidden tabs. */
+/* A lone astronaut far off in the Clarity Space sky, made of cut crystal:
+   tapered, jointed limbs, a life-support pack, a chest unit, gloves and boots,
+   a helmet with a dark mirrored visor, and a slack tether floating loose. Every
+   part is built from triangular facets that catch a slowly moving light (white
+   and silver highlights, deep shadows, warm amber from below, cool blue at the
+   edge), with twinkling glints and specks of light drifting around it. It lives on the map like the petals (it pans and
+   zooms with the bubbles) and drifts in a slow, wide loop around one patch of
+   sky, tumbling gently, small and a little dim so it reads as far away. Off in
+   other themes and hidden tabs; still for reduced motion. */
+const astronaut = (() => {
+  const cv = document.getElementById('astronaut');
+  if(!cv) return null;
+  const ctx = cv.getContext('2d');
+  const still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let w = 0, h = 0, raf = 0, last = 0, lastDraw = 0, t = 40, dirty = true;
+  const HOME = { x: 1350, y: 760 };            // his spot: far out in the bottom right of the map, in map units
+  const SIZE = 0.55;                           // the figure is 100 drawing units tall: about 55 map units
+  const size = () => {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = innerWidth; h = innerHeight;
+    cv.width = w * dpr; cv.height = h * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    dirty = true;
+  };
+  const camera = () => {
+    if(typeof cam !== 'object' || view !== 'hub') return { ox: w * 0.25, oy: h * 0.75, z: 1 };
+    const r = hubRect();
+    return { ox: r.left + r.width / 2 - cam.x * cam.z, oy: r.top + r.height / 2 - cam.y * cam.z, z: cam.z };
+  };
+  // a tapered limb segment: round at both ends, r1 at (x1,y1) narrowing to r2 at (x2,y2)
+  const capsule = (x1, y1, r1, x2, y2, r2) => {
+    const a = Math.atan2(y2 - y1, x2 - x1);
+    ctx.beginPath();
+    ctx.arc(x1, y1, r1, a + Math.PI / 2, a + Math.PI * 1.5);
+    ctx.arc(x2, y2, r2, a - Math.PI / 2, a + Math.PI / 2);
+    ctx.closePath();
+  };
+  // ---- the crystal surface ----
+  // One sheet of triangular facets covering the figure, drawn into a small
+  // canvas and clipped into each body part. Every facet has its own tilt, so it
+  // catches the moving light differently: white and silver highlights, deep
+  // shadow facets, warm amber reflections from below and cool blue at the edge.
+  const BX = -56, BY = -48, BW = 112, BH = 104, RES = 5, CELL = 8.5;
+  let seed = 29;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const cols = Math.ceil(BW / CELL) + 1, rows = Math.ceil(BH / CELL) + 1;
+  const pts = [];
+  for(let r = 0; r <= rows; r++) for(let c = 0; c <= cols; c++){
+    const edge = r === 0 || c === 0 || r === rows || c === cols;
+    pts.push([BX + c * CELL + (edge ? 0 : (rnd() - 0.5) * CELL * 0.8), BY + r * CELL + (edge ? 0 : (rnd() - 0.5) * CELL * 0.8)]);
+  }
+  const tris = [];
+  for(let r = 0; r < rows; r++) for(let c = 0; c < cols; c++){
+    const i = r * (cols + 1) + c, A = pts[i], B = pts[i + 1], C = pts[i + cols + 1], D = pts[i + cols + 2];
+    const flip = rnd() < 0.5;
+    for(const tri of flip ? [[A, B, D], [A, D, C]] : [[A, B, C], [B, D, C]])
+      tris.push({ p: tri, nx: rnd() * 2 - 1, ny: rnd() * 2 - 1, tint: rnd() });
+  }
+  const sheet = document.createElement('canvas');
+  sheet.width = BW * RES; sheet.height = BH * RES;
+  const sx = sheet.getContext('2d');
+  let sheetPhase = -1;
+  const paintSheet = phase => {
+    sheetPhase = phase;
+    sx.setTransform(RES, 0, 0, RES, -BX * RES, -BY * RES);
+    sx.clearRect(BX, BY, BW, BH);
+    const lx = Math.cos(phase) * 0.8 - 0.4, ly = Math.sin(phase) * 0.5 - 0.6;      // the light, slowly circling
+    for(const f of tris){
+      const [A, B, C] = f.p, cx = (A[0] + B[0] + C[0]) / 3, cy = (A[1] + B[1] + C[1]) / 3;
+      const lit = Math.max(0, Math.min(1, 0.5 + (f.nx * lx + f.ny * ly) * 0.75));
+      let rgb;
+      // chrome: hard contrast between facets, from near-black to flashes of pure white
+      const g = lit > 0.86 ? 255 : lit < 0.5 ? 18 + lit * 2 * 100 : 118 + (lit - 0.5) * 2 * 120;
+      if(cy > 12 && f.tint < 0.13 + (cy - 12) / 420) rgb = [240, 158, 92].map(v => v * (0.45 + lit * 0.7));     // a few warm reflections, lower down
+      else if(f.tint > 0.84 || (Math.abs(cx) > 30 && f.tint > 0.6)) rgb = (f.tint > 0.92 ? [190, 140, 255] : [120, 165, 255]).map(v => v * (0.5 + lit * 0.6));   // blue and violet space light
+      else rgb = [g, g * 0.99, Math.min(255, g * 1.04)];                                                        // white, silver, shadow
+      const top = rgb.map(v => Math.min(255, Math.round(v * 1.12))), bot = rgb.map(v => Math.round(v * 0.86));
+      const grad = sx.createLinearGradient(A[0], A[1], C[0], C[1]);                // a soft shade within each facet, so it never looks pixelated
+      grad.addColorStop(0, 'rgb(' + top + ')'); grad.addColorStop(1, 'rgb(' + bot + ')');
+      sx.fillStyle = grad;
+      sx.beginPath(); sx.moveTo(A[0], A[1]); sx.lineTo(B[0], B[1]); sx.lineTo(C[0], C[1]); sx.closePath();
+      sx.fill();
+      sx.strokeStyle = 'rgba(255,255,255,0.2)'; sx.lineWidth = 0.35; sx.stroke();    // bright seams, like cut glass
+    }
+  };
+  // fill the current path with crystal, darkened by `shade` (1 = full light)
+  const crystal = shade => {
+    ctx.save(); ctx.clip();
+    ctx.drawImage(sheet, BX, BY, BW, BH);
+    if(shade && shade < 1){ ctx.fillStyle = 'rgba(0,0,8,' + (1 - shade) + ')'; ctx.fillRect(BX, BY, BW, BH); }
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(18,14,24,0.55)'; ctx.lineWidth = 0.7; ctx.stroke();      // a fine edge, no heavy ink
+  };
+  const sparkle = (x, y, r, a) => {                     // a four-point glint
+    if(a <= 0.02) return;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'rgba(255,255,255,' + a + ')'); g.addColorStop(1, 'rgba(255,240,220,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.moveTo(x - r, y); ctx.quadraticCurveTo(x, y, x, y - r); ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.quadraticCurveTo(x, y, x, y + r); ctx.quadraticCurveTo(x, y, x - r, y); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,' + a + ')'; ctx.beginPath(); ctx.arc(x, y, r * 0.12, 0, Math.PI * 2); ctx.fill();
+  };
+  const SPECKS = Array.from({ length: 14 }, () => ({ x: -55 + rnd() * 110, y: -65 + rnd() * 130, warm: rnd() < 0.6, ph: rnd() * 6.3, r: 0.6 + rnd() * 1.1 }));
+  const limb = (p, radii) => {                            // upper + lower segment, joined
+    capsule(p[0][0], p[0][1], radii[0], p[1][0], p[1][1], radii[1]); crystal(0.95);
+    capsule(p[1][0], p[1][1], radii[1], p[2][0], p[2][1], radii[2]); crystal(0.9);
+  };
+  // Facing us, floating free: arms spread out to the sides with the gloves
+  // open, legs a little apart and bent, the pack and its thrusters showing
+  // above the shoulders. `s` sways the limbs a touch.
+  const drawFigure = (s, tt) => {
+    const phase = Math.round(tt * 0.35 * 8) / 8;          // the light moves in small steps: the facets glint
+    if(phase !== sheetPhase) paintSheet(phase);
+    const glow = ctx.createRadialGradient(0, 0, 8, 0, 0, 72);
+    glow.addColorStop(0, 'rgba(170,190,255,0.09)'); glow.addColorStop(1, 'rgba(170,190,255,0)');
+    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, 0, 72, 0, Math.PI * 2); ctx.fill();
+    for(const p of SPECKS){
+      const a = 0.25 + 0.55 * Math.max(0, Math.sin(tt * 1.3 + p.ph));
+      ctx.fillStyle = p.warm ? 'rgba(255,170,110,' + a + ')' : 'rgba(150,170,255,' + a + ')';
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+    }
+    // life-support pack and its two thruster pods, behind the shoulders and helmet
+    ctx.beginPath(); ctx.roundRect(-18, -43, 36, 30, 4); crystal(0.65);
+    ctx.beginPath(); ctx.roundRect(-24, -41, 7, 20, 3); crystal(0.75);
+    ctx.beginPath(); ctx.roundRect(17, -41, 7, 20, 3); crystal(0.75);
+    // legs, a little apart and bent, seen slightly from above
+    limb([[-7, 12], [-12 - s * 0.6, 28], [-13, 40 + s]], [6.6, 5.4, 4.4]);
+    ctx.beginPath(); ctx.roundRect(-19, 39 + s, 12, 8, [2.5, 2.5, 4, 4]); crystal(0.8);
+    limb([[7, 12], [12 + s * 0.6, 28], [13, 40 - s]], [6.6, 5.4, 4.4]);
+    ctx.beginPath(); ctx.roundRect(7, 39 - s, 12, 8, [2.5, 2.5, 4, 4]); crystal(0.8);
+    // torso: broad shoulders narrowing to the waist; chest unit and waist ring
+    ctx.beginPath();
+    ctx.moveTo(-17, -16);
+    ctx.bezierCurveTo(-18, -2, -13, 6, -11, 13);
+    ctx.lineTo(11, 13);
+    ctx.bezierCurveTo(13, 6, 18, -2, 17, -16);
+    ctx.quadraticCurveTo(0, -21, -17, -16);
+    crystal(1);
+    ctx.beginPath(); ctx.roundRect(-7.5, -9, 15, 10, 1.8); crystal(0.75);
+    ctx.fillStyle = '#0A0A10';
+    for(const dx of [-4, 0, 4]){ ctx.beginPath(); ctx.arc(dx, -4, 0.9, 0, Math.PI * 2); ctx.fill(); }
+    ctx.beginPath(); ctx.ellipse(0, 12.5, 12, 2.6, 0, 0, Math.PI * 2); crystal(0.8);
+    // arms spread wide, gloves open
+    limb([[-15, -13], [-30, -9 + s], [-43, -13 + s * 1.6]], [5.6, 4.6, 3.9]);
+    ctx.beginPath(); ctx.ellipse(-47.5, -14 + s * 1.6, 4.6, 5.8, 0.5, 0, Math.PI * 2); crystal(0.9);
+    limb([[15, -13], [30, -9 - s], [43, -13 - s * 1.6]], [5.6, 4.6, 3.9]);
+    ctx.beginPath(); ctx.ellipse(47.5, -14 - s * 1.6, 4.6, 5.8, -0.5, 0, Math.PI * 2); crystal(0.9);
+    // shoulder joint rings
+    for(const dx of [-15, 15]){ ctx.beginPath(); ctx.ellipse(dx, -13, 4.5, 6, 0, 0, Math.PI * 2); crystal(0.85); }
+    // neck ring and helmet, straight on
+    ctx.beginPath(); ctx.ellipse(0, -18.5, 11, 3.2, 0, 0, Math.PI * 2); crystal(0.8);
+    ctx.beginPath(); ctx.ellipse(0, -30, 12, 13, 0, 0, Math.PI * 2); crystal(1);
+    // the visor: dark mirrored glass holding a little reflected space light
+    const visor = ctx.createLinearGradient(-8, -38, 8, -22);
+    visor.addColorStop(0, '#2B2F55'); visor.addColorStop(0.45, '#07070D'); visor.addColorStop(0.85, '#3A2A6A'); visor.addColorStop(1, '#7FA6FF');
+    ctx.fillStyle = visor;
+    ctx.beginPath(); ctx.ellipse(0, -29, 9, 8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(18,14,24,0.7)'; ctx.lineWidth = 0.8; ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 1.3; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.ellipse(0, -29, 6.6, 5.6, 0, Math.PI * 1.12, Math.PI * 1.45); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    for(const [dx, dy, r] of [[4.5, -32, 0.8], [-2.5, -25, 0.5], [3, -24.5, 0.4]]){ ctx.beginPath(); ctx.arc(dx, dy, r, 0, Math.PI * 2); ctx.fill(); }
+    // twinkling glints
+    sparkle(-7, -40, 6, 0.85 * Math.max(0, Math.sin(tt * 1.1)));
+    sparkle(43, -16, 5, 0.75 * Math.max(0, Math.sin(tt * 0.8 + 2)));
+    sparkle(-12, 28, 4.5, 0.7 * Math.max(0, Math.sin(tt * 1.4 + 4)));
+  };
+  const draw = () => {
+    const { ox, oy, z } = camera();
+    // a slow, wide loop around its patch of sky
+    const X = HOME.x + Math.sin(t * 0.07) * 10, Y = HOME.y + Math.sin(t * 0.35) * 5;          // just floating there, bobbing gently
+    ctx.clearRect(0, 0, w, h);
+    ctx.save();
+    ctx.translate(ox + X * z, oy + Y * z);
+    ctx.rotate(-0.12 + Math.sin(t * 0.16) * 0.1);                                               // a lazy sway, never tumbling
+    ctx.scale(SIZE * z, SIZE * z);
+    ctx.globalAlpha = 0.88;                                  // a touch dim, from the distance
+    drawFigure(Math.sin(t * 0.6), t);
+    ctx.restore();
+    dirty = false;
+  };
+  const frame = now => {
+    raf = requestAnimationFrame(frame);
+    const dt = last ? Math.min(0.05, (now - last) / 1000) : 0.016;
+    last = now; t += dt;
+    if(dirty || now - lastDraw > 33){ lastDraw = now; draw(); }
+  };
+  const on = () => document.documentElement.getAttribute('data-theme') === 'claritydark' && !document.hidden;
+  const update = () => {
+    if(on()){
+      if(!w) size();
+      if(still){ draw(); return; }
+      if(!raf){ last = 0; raf = requestAnimationFrame(frame); }
+    } else if(raf){ cancelAnimationFrame(raf); raf = 0; }
+  };
+  new MutationObserver(update).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
+  document.addEventListener('visibilitychange', update);
+  addEventListener('resize', () => { if(w){ size(); if(still && on()) draw(); } });
+  update();
+  return { moved: () => { dirty = true; if(still && on() && w) draw(); } };
+})();
+window.wfAstronaut = astronaut;
+
+/* ---- The astronaut's story ----
+   Each theme hides one small scene far out at the edge of the map, too small
+   and too far to notice at the normal zoom; zoom right out and it is there in
+   the corner. Scenes live in map coordinates, so they pan and zoom with the
+   bubbles, and a scene is only drawn while it is actually on screen.
+   Add a chapter by adding an entry to CHAPTERS: { theme, at, reach, draw }. */
+const story = (() => {
+  const cv = document.getElementById('story');
+  if(!cv) return null;
+  const ctx = cv.getContext('2d');
+  const still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let w = 0, h = 0, raf = 0, last = 0, lastDraw = 0, t = 0, dirty = true, shown = false;
+
+  // ---- Chapter 1, Clarity: a space shuttle pulled into a black hole, in ink on the white page ----
+  const INKC = '#1D1D1F';
+  let seed = 5;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const STARS1 = Array.from({ length: 22 }, () => ({ x: -470 + rnd() * 940, y: -300 + rnd() * 560, r: 3 + rnd() * 5 }));
+  // a small, original space shuttle, nose pointing along +x, about 70 units long
+  const shuttle = () => {
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.fillStyle = '#FFFFFF'; ctx.strokeStyle = INKC; ctx.lineWidth = 2;
+    // delta wings
+    ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-18, -24); ctx.lineTo(-28, -24); ctx.lineTo(-24, 0); ctx.lineTo(-28, 24); ctx.lineTo(-18, 24); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    // body
+    ctx.beginPath(); ctx.moveTo(38, 0); ctx.bezierCurveTo(32, -9, 10, -9, -30, -8); ctx.lineTo(-34, -6); ctx.lineTo(-34, 6); ctx.lineTo(-30, 8); ctx.bezierCurveTo(10, 9, 32, 9, 38, 0);
+    ctx.fill(); ctx.stroke();
+    // dark nose and wing edges, cockpit windows, tail fin, engines
+    ctx.fillStyle = INKC;
+    ctx.beginPath(); ctx.moveTo(38, 0); ctx.bezierCurveTo(36, -4, 33, -6, 30, -6); ctx.lineTo(30, 6); ctx.bezierCurveTo(33, 6, 36, 4, 38, 0); ctx.fill();
+    ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-18, -24); ctx.lineTo(-28, -24); ctx.moveTo(-18, 24); ctx.lineTo(-28, 24); ctx.stroke();
+    for(const y of [-3, 1]){ ctx.beginPath(); ctx.rect(22, y, 4, 2.6); ctx.fill(); }
+    ctx.lineWidth = 2; ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(-30, -2); ctx.lineTo(-34, -1); ctx.lineTo(-34, 1); ctx.lineTo(-30, 2); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = INKC;
+    for(const y of [-5, 0, 5]){ ctx.beginPath(); ctx.arc(-36, y, 2.2, 0, Math.PI * 2); ctx.fill(); }
+    // a few panel lines
+    ctx.strokeStyle = 'rgba(29,29,31,0.45)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(10, -6.5); ctx.lineTo(10, 6.5); ctx.moveTo(-6, -7.5); ctx.lineTo(-6, 7.5); ctx.stroke();
+  };
+  // the crystal surface for the black hole: triangular facets that catch a
+  // slowly moving light (white and silver highlights, deep shadow, blue-violet
+  // and a little amber), the same look as the Clarity Space astronaut
+  const crystalSheet = (() => {
+    const SW = 260, SH = 260, CELL = 13, RES = 3;
+    let sd = 17;
+    const rr = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
+    const cols = Math.ceil(SW / CELL), rows = Math.ceil(SH / CELL), pts = [];
+    for(let r = 0; r <= rows; r++) for(let c = 0; c <= cols; c++){
+      const edge = r === 0 || c === 0 || r === rows || c === cols;
+      pts.push([c * CELL + (edge ? 0 : (rr() - 0.5) * CELL * 0.8), r * CELL + (edge ? 0 : (rr() - 0.5) * CELL * 0.8)]);
+    }
+    const tris = [];
+    for(let r = 0; r < rows; r++) for(let c = 0; c < cols; c++){
+      const i = r * (cols + 1) + c, A = pts[i], B = pts[i + 1], C = pts[i + cols + 1], D = pts[i + cols + 2];
+      for(const t of rr() < 0.5 ? [[A, B, D], [A, D, C]] : [[A, B, C], [B, D, C]]) tris.push({ p: t, nx: rr() * 2 - 1, ny: rr() * 2 - 1, tint: rr() });
+    }
+    const cv2 = document.createElement('canvas'); cv2.width = SW * RES; cv2.height = SH * RES;
+    const x = cv2.getContext('2d'); let phaseNow = -1;
+    const paint = phase => {
+      if(phase === phaseNow) return; phaseNow = phase;
+      x.setTransform(RES, 0, 0, RES, 0, 0); x.clearRect(0, 0, SW, SH);
+      const lx = Math.cos(phase) * 0.8 - 0.4, ly = Math.sin(phase) * 0.5 - 0.6;
+      for(const f of tris){
+        const [A, B, C] = f.p;
+        const lit = Math.max(0, Math.min(1, 0.5 + (f.nx * lx + f.ny * ly) * 0.75));
+        const g = lit > 0.86 ? 255 : lit < 0.5 ? 18 + lit * 2 * 100 : 118 + (lit - 0.5) * 2 * 120;
+        const rgb = f.tint > 0.86 ? [190, 140, 255].map(v => v * (0.5 + lit * 0.6))
+                  : f.tint > 0.72 ? [120, 165, 255].map(v => v * (0.5 + lit * 0.6))
+                  : f.tint < 0.07 ? [240, 158, 92].map(v => v * (0.45 + lit * 0.7))
+                  : [g, g * 0.99, Math.min(255, g * 1.04)];
+        const gr = x.createLinearGradient(A[0], A[1], C[0], C[1]);
+        gr.addColorStop(0, 'rgb(' + rgb.map(v => Math.min(255, Math.round(v * 1.12))) + ')');
+        gr.addColorStop(1, 'rgb(' + rgb.map(v => Math.round(v * 0.86)) + ')');
+        x.fillStyle = gr;
+        x.beginPath(); x.moveTo(A[0], A[1]); x.lineTo(B[0], B[1]); x.lineTo(C[0], C[1]); x.closePath(); x.fill();
+        x.strokeStyle = 'rgba(255,255,255,0.2)'; x.lineWidth = 0.35; x.stroke();
+      }
+    };
+    return { cv: cv2, paint };
+  })();
+  const chapter1 = tt => {
+    ctx.scale(0.7, 0.7);                                         // the whole scene, a little smaller
+    const R = 34, tilt = -0.15;                                  // a small black hole
+    // little ink stars
+    ctx.strokeStyle = 'rgba(29,29,31,0.55)'; ctx.lineWidth = 1.4;
+    for(const s of STARS1){ ctx.beginPath(); ctx.moveTo(s.x - s.r, s.y); ctx.lineTo(s.x + s.r, s.y); ctx.moveTo(s.x, s.y - s.r); ctx.lineTo(s.x, s.y + s.r); ctx.stroke(); }
+    crystalSheet.paint(Math.round(tt * 0.35 * 8) / 8);          // the light moves in small steps: the facets glint
+    const RO = R * 3.75, RI = R * 1.45, FLAT = 0.22;
+    // the disk: a flattened ring of crystal shards sliding slowly round; far half first
+    const disk = back => {
+      ctx.save();
+      ctx.rotate(tilt);
+      ctx.save();
+      ctx.beginPath();
+      ctx.ellipse(0, 0, RO, RO * FLAT, 0, 0, Math.PI * 2);
+      ctx.ellipse(0, 0, RI, RI * FLAT, 0, 0, Math.PI * 2);
+      ctx.clip('evenodd');
+      ctx.beginPath(); ctx.rect(-RO - 2, back ? -RO : 0, RO * 2 + 4, RO); ctx.clip();      // just the far (or near) half
+      const sheetW = RO * 2, shift = ((tt * 9) % sheetW + sheetW) % sheetW;
+      for(const k of [-1, 0]) ctx.drawImage(crystalSheet.cv, -RO + shift + k * sheetW, -RO * FLAT, sheetW, RO * FLAT * 2);
+      ctx.restore();
+      ctx.strokeStyle = 'rgba(29,29,31,0.55)'; ctx.lineWidth = 1;                         // a fine ink edge
+      ctx.beginPath(); ctx.ellipse(0, 0, RO, RO * FLAT, 0, back ? Math.PI : 0, back ? Math.PI * 2 : Math.PI); ctx.stroke();
+      ctx.restore();
+    };
+    disk(true);
+    // the bent light around the hole: faint ink rings, a ring of crystal, then the dark centre
+    for(const [k, a] of [[1.9, 0.12], [1.6, 0.2]]){
+      ctx.strokeStyle = 'rgba(29,29,31,' + a + ')'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(0, 0, R * k, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.save();
+    ctx.beginPath(); ctx.arc(0, 0, R * 1.32, 0, Math.PI * 2); ctx.arc(0, 0, R * 0.98, 0, Math.PI * 2, true); ctx.clip();
+    ctx.drawImage(crystalSheet.cv, -R * 1.4, -R * 1.4, R * 2.8, R * 2.8);
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(29,29,31,0.6)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(0, 0, R * 1.32, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#0B0B0D'; ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
+    disk(false);
+    // the shuttle, spiralling in over ~40 seconds: it shrinks, stretches toward the hole and is gone
+    const u = ((tt / 40) % 1 + 1) % 1;
+    const ang = (r0, k) => 2.6 - k * 5.2;                       // how far round it has come
+    const pos = k => { const rr = 430 * (1 - k) + 70 * k; const a = ang(0, k); return [Math.cos(a) * rr, Math.sin(a) * rr * 0.62]; };
+    ctx.strokeStyle = 'rgba(29,29,31,0.4)'; ctx.lineWidth = 1.6; ctx.setLineDash([2, 7]);       // its dotted trail
+    ctx.beginPath();
+    for(let k = Math.max(0, u - 0.28), first = true; k <= u; k += 0.01){ const [x, y] = pos(k); if(first){ ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y); }
+    ctx.stroke(); ctx.setLineDash([]);
+    const [x, y] = pos(u), [nx, ny] = pos(Math.min(1, u + 0.01));
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(Math.atan2(ny - y, nx - x));
+    const shrink = 1 - u * 0.75, stretch = 1 + Math.pow(u, 3) * 2.2;
+    ctx.scale(shrink * stretch * 0.9, shrink / Math.sqrt(stretch) * 0.9);
+    ctx.globalAlpha = u > 0.93 ? (1 - u) / 0.07 : 1;
+    shuttle();
+    ctx.restore();
+  };
+
+  const CHAPTERS = [
+    { theme: 'clarity', at: { x: -2700, y: 1180 }, reach: 360, draw: chapter1 },    // tucked into the bottom-left corner
+  ];
+
+  const size = () => {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = innerWidth; h = innerHeight;
+    cv.width = w * dpr; cv.height = h * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    dirty = true;
+  };
+  const camera = () => {
+    const r = hubRect();
+    return { ox: r.left + r.width / 2 - cam.x * cam.z, oy: r.top + r.height / 2 - cam.y * cam.z, z: cam.z };
+  };
+  const visible = () => {
+    if(typeof cam !== 'object' || view !== 'hub' || document.hidden) return [];
+    const theme = document.documentElement.getAttribute('data-theme');
+    const { ox, oy, z } = camera();
+    return CHAPTERS.filter(c => {
+      if(c.theme !== theme) return false;
+      const sx = ox + c.at.x * z, sy = oy + c.at.y * z, m = c.reach * z;
+      return sx + m > 0 && sx - m < w && sy + m > 0 && sy - m < h;
+    });
+  };
+  const draw = list => {
+    ctx.clearRect(0, 0, w, h);
+    const { ox, oy, z } = camera();
+    for(const c of list){
+      ctx.save();
+      ctx.translate(ox + c.at.x * z, oy + c.at.y * z);
+      ctx.scale(z, z);
+      c.draw(t);
+      ctx.restore();
+    }
+    shown = list.length > 0;
+    dirty = false;
+  };
+  const frame = now => {
+    raf = 0;
+    const list = visible();
+    if(!list.length){ if(shown){ ctx.clearRect(0, 0, w, h); shown = false; } return; }   // nothing on screen: stop
+    const dt = last ? Math.min(0.05, (now - last) / 1000) : 0.016;
+    last = now;
+    if(!still) t += dt;
+    if(dirty || (!still && now - lastDraw > 33)){ lastDraw = now; draw(list); }
+    if(!still) raf = requestAnimationFrame(frame);
+  };
+  const wake = () => { if(!w) size(); dirty = true; if(!raf){ last = 0; raf = requestAnimationFrame(frame); } };
+  new MutationObserver(wake).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
+  document.addEventListener('visibilitychange', wake);
+  addEventListener('resize', () => { size(); wake(); });
+  return { moved: wake };
+})();
+window.wfStory = story;
+
+const meteors = (() => {
+  const cv = document.getElementById('meteors');
+  if(!cv) return null;
+  const ctx = cv.getContext('2d');
+  const still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let w = 0, h = 0, raf = 0, timer = 0, last = 0, list = [];
+  const size = () => {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = innerWidth; h = innerHeight;
+    cv.width = w * dpr; cv.height = h * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+  const on = () => !still && document.documentElement.getAttribute('data-theme') === 'claritydark' && !document.hidden;
+  const launch = () => {
+    timer = 0;
+    if(!on()) return;
+    // start somewhere along the top or the right edge, heading down and to the left
+    const angle = Math.PI * (0.78 + Math.random() * 0.1);
+    const fromTop = Math.random() < 0.6;
+    list.push({
+      x: fromTop ? w * (0.25 + Math.random() * 0.75) : w + 20, y: fromTop ? -20 : h * Math.random() * 0.45,
+      dx: Math.cos(angle), dy: Math.sin(angle),
+      speed: 900 + Math.random() * 600, len: 120 + Math.random() * 120,
+      age: 0, life: 0.7 + Math.random() * 0.5,
+    });
+    if(!raf){ last = 0; raf = requestAnimationFrame(frame); }
+    timer = setTimeout(launch, 3000 + Math.random() * 6000);
+  };
+  const frame = now => {
+    const dt = last ? Math.min(0.05, (now - last) / 1000) : 0.016;
+    last = now;
+    ctx.clearRect(0, 0, w, h);
+    list = list.filter(m => (m.age += dt) < m.life);
+    for(const m of list){
+      m.x += m.dx * m.speed * dt; m.y += m.dy * m.speed * dt;
+      const k = m.age / m.life, fade = Math.min(1, k * 6) * (1 - k);         // flick on, then die away
+      const tx = m.x - m.dx * m.len, ty = m.y - m.dy * m.len;
+      const g = ctx.createLinearGradient(m.x, m.y, tx, ty);
+      g.addColorStop(0, 'rgba(255,255,255,' + 0.95 * fade + ')');
+      g.addColorStop(0.3, 'rgba(190,215,255,' + 0.45 * fade + ')');
+      g.addColorStop(1, 'rgba(190,215,255,0)');
+      ctx.strokeStyle = g; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(tx, ty); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,' + 0.9 * fade + ')';             // the bright head
+      ctx.beginPath(); ctx.arc(m.x, m.y, 1.6, 0, Math.PI * 2); ctx.fill();
+    }
+    raf = list.length ? requestAnimationFrame(frame) : 0;
+  };
+  const update = () => {
+    if(on()){
+      if(!w) size();
+      if(!timer) timer = setTimeout(launch, 1200 + Math.random() * 2500);
+    } else {
+      clearTimeout(timer); timer = 0;
+      if(raf){ cancelAnimationFrame(raf); raf = 0; }
+      list = []; if(w) ctx.clearRect(0, 0, w, h);
+    }
+  };
+  new MutationObserver(update).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
+  document.addEventListener('visibilitychange', update);
+  addEventListener('resize', () => { if(w) size(); });
+  update();
+  return { launch };
+})();
+
+/* Cherry blossom petals for the Cherry Blossom theme. Each petal falls,
+   sways side to side and tumbles (its width squeezes as it turns over). It
+   only runs while that theme is on and the tab is visible; with reduced motion
+   it paints one still scatter of petals instead. */
+const petals = (() => {
+  const cv = document.getElementById('petals');
+  if(!cv) return null;
+  const ctx = cv.getContext('2d');
+  const still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const tints = ['#F9C5D8', '#F6B2CB', '#FBD9E6', '#F4A3BF', '#FDE8F0', '#F8BBD0'];
+  let list = [], raf = 0, w = 0, h = 0, last = 0;
+  const make = (anywhere) => {
+    const size = 7 + Math.random() * 8;
+    return {
+      x: Math.random() * w, y: anywhere ? Math.random() * h : -20 - Math.random() * h * 0.3,
+      size, fall: 18 + size * 2.2 + Math.random() * 14,          // px per second, bigger is nearer and faster
+      drift: -6 + Math.random() * 18,                              // a light breeze from the left
+      sway: 10 + Math.random() * 22, swayRate: 0.6 + Math.random() * 0.9, phase: Math.random() * 6.28,
+      rot: Math.random() * 6.28, spin: -1 + Math.random() * 2,
+      tumble: Math.random() * 6.28, tumbleRate: 1 + Math.random() * 2,
+      tint: tints[Math.floor(Math.random() * tints.length)], alpha: 0.7 + Math.random() * 0.3,
+    };
+  };
+  const size = () => {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = innerWidth; h = innerHeight;
+    cv.width = w * dpr; cv.height = h * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const want = Math.round(Math.min(55, Math.max(18, w * h / 26000)));
+    while(list.length < want) list.push(make(true));
+    list.length = want;
+  };
+  // one petal: a rounded teardrop with the little notch cherry petals have at the tip
+  // Petals live on the map, not the screen. Their positions are map
+  // coordinates inside one tile (TW x TH) that repeats across the whole map,
+  // and every copy is placed with the same camera maths as the grid and the
+  // bubbles: panning slides them, zooming spreads or gathers them and scales
+  // them, and there are petals wherever you scroll or however far you zoom out.
+  const TW = () => w + 80, TH = () => h + 40;
+  const wrap = (v, lo, hi) => lo + (((v - lo) % (hi - lo)) + (hi - lo)) % (hi - lo);
+  const camera = () => {
+    if(typeof cam !== 'object' || view !== 'hub') return { ox: 0, oy: 0, z: 1 };
+    const r = hubRect();
+    return { ox: r.left + r.width / 2 - cam.x * cam.z, oy: r.top + r.height / 2 - cam.y * cam.z, z: cam.z };   // where map (0,0) sits on screen
+  };
+  const drawAll = () => {
+    const { ox, oy, z } = camera();
+    const tw = TW(), th = TH();
+    ctx.clearRect(0, 0, w, h);
+    for(const p of list){
+      const fx = wrap(p.x + Math.sin(p.phase) * p.sway, 0, tw), fy = wrap(p.y, 0, th);
+      const m = 20 * z;                                   // keep edge petals drawn until fully off screen
+      const i0 = Math.floor(((-m - ox) / z - fx) / tw), i1 = Math.floor(((w + m - ox) / z - fx) / tw);
+      const j0 = Math.floor(((-m - oy) / z - fy) / th), j1 = Math.floor(((h + m - oy) / z - fy) / th);
+      for(let i = i0; i <= i1; i++) for(let j = j0; j <= j1; j++)
+        drawPetal(p, ox + (fx + i * tw) * z, oy + (fy + j * th) * z, z);
+    }
+  };
+  const drawPetal = (p, sx, sy, z) => {
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(p.rot);
+    ctx.scale(z * (0.35 + 0.65 * Math.abs(Math.cos(p.tumble))), z);   // zooming in makes petals bigger
+    ctx.globalAlpha = p.alpha;
+    const s = p.size;
+    ctx.beginPath();
+    ctx.moveTo(0, s * 0.55);
+    ctx.bezierCurveTo(s * 0.75, s * 0.25, s * 0.55, -s * 0.55, s * 0.14, -s * 0.5);
+    ctx.lineTo(0, -s * 0.34);
+    ctx.lineTo(-s * 0.14, -s * 0.5);
+    ctx.bezierCurveTo(-s * 0.55, -s * 0.55, -s * 0.75, s * 0.25, 0, s * 0.55);
+    ctx.fillStyle = p.tint;
+    ctx.fill();
+    ctx.globalAlpha = p.alpha * 0.35;                              // a soft darker vein down the middle
+    ctx.strokeStyle = '#E58BAE'; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.moveTo(0, s * 0.4); ctx.lineTo(0, -s * 0.25); ctx.stroke();
+    ctx.restore();
+  };
+  const frame = now => {
+    raf = requestAnimationFrame(frame);
+    const dt = last ? Math.min(0.05, (now - last) / 1000) : 0.016;
+    last = now;
+    for(const p of list){
+      p.y += p.fall * dt; p.x += p.drift * dt;            // map units: falling off the tile wraps back to its top
+      p.phase += p.swayRate * dt; p.rot += p.spin * dt; p.tumble += p.tumbleRate * dt;
+    }
+    drawAll();
+  };
+  const paintStill = () => drawAll();
+  const on = () => document.documentElement.getAttribute('data-theme') === 'iridescence' && !document.hidden;
+  const update = () => {
+    if(on()){
+      if(!w) size();
+      if(still){ paintStill(); return; }
+      if(!raf){ last = 0; raf = requestAnimationFrame(frame); }
+    } else if(raf){ cancelAnimationFrame(raf); raf = 0; }
+  };
+  new MutationObserver(update).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
+  document.addEventListener('visibilitychange', update);
+  addEventListener('resize', () => { if(w){ size(); if(still && on()) paintStill(); } });
+  update();
+  // with reduced motion nothing animates, so the still petals are repainted when the map moves
+  return { update, moved: () => { if(still && on() && w) paintStill(); } };
+})();
+window.wfPetals = petals;
+
+/* The Horizon theme: a planet horizon drawn in text characters, after the
+   Gradient ASCII effect. Everything is placed in map coordinates (like the
+   petals), so it pans and zooms with the bubbles. Brightness picks both the
+   colour, from the effect's blue ramp, and the character, from ' =+xX0S8#@'
+   (denser characters where it is brighter). A soft low-resolution glow sits
+   underneath the characters. Runs only in this theme, ~25 frames a second. */
+const asciiSky = (() => {
+  const cv = document.getElementById('ascii');
+  if(!cv) return null;
+  const ctx = cv.getContext('2d');
+  const still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const CHARS = ' =+xX0S8#@';
+  const RAMP = [[30,63,216], [56,189,248], [165,216,255], [246,248,255]];   // #1E3FD8 #38BDF8 #A5D8FF #F6F8FF
+  const LEVELS = 8;
+  const CW = 11, CH = 18;                    // one character cell, in map units
+  const glow = document.createElement('canvas'), gctx = glow.getContext('2d');
+  let w = 0, h = 0, dpr = 1, raf = 0, t = 0, last = 0, lastDraw = 0, dirty = true;
+  let sprites = null, spriteSize = 0;
+
+  const hash = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); };
+  const smooth = v => v * v * (3 - 2 * v);
+  const noise = (x, y) => {                  // smooth value noise, 0..1
+    const xi = Math.floor(x), yi = Math.floor(y), xf = smooth(x - xi), yf = smooth(y - yi);
+    const a = hash(xi, yi), b = hash(xi + 1, yi), c = hash(xi, yi + 1), d = hash(xi + 1, yi + 1);
+    return a + (b - a) * xf + (c - a) * yf + (a - b - c + d) * xf * yf;
+  };
+  const rampColor = v => {
+    const x = Math.min(0.999, Math.max(0, v)) * (RAMP.length - 1), i = Math.floor(x), f = x - i;
+    return RAMP[i].map((c, k) => Math.round(c + (RAMP[i + 1][k] - c) * f));
+  };
+  // how bright the horizon is at a map point: a glowing rim just above the
+  // planet's edge fading up into the sky, a faint planet below, a little dust
+  // The whole map is covered in characters. Two layers of slow noise roll
+  // through it, so patches brighten into dense characters and fade back to
+  // faint ones, always changing, never empty and never in bands.
+  const field = (X, Y) => {
+    const u = X / 620, v = Y / 620;
+    const n1 = noise(u * 1.3 + t * 0.16, v * 1.3 - t * 0.11);
+    const n2 = noise(u * 3.1 - t * 0.22, v * 3.1 + t * 0.14);
+    const n3 = noise(u * 0.55 - t * 0.05, v * 0.55 + t * 0.07);
+    const mix = n1 * 0.45 + n2 * 0.3 + n3 * 0.25;
+    return 0.12 + 0.95 * Math.pow(Math.max(0, mix - 0.18) / 0.82, 1.35);
+  };
+  const camera = () => {
+    if(typeof cam !== 'object' || view !== 'hub') return { ox: w / 2, oy: h / 2, z: 1 };
+    const r = hubRect();
+    return { ox: r.left + r.width / 2 - cam.x * cam.z, oy: r.top + r.height / 2 - cam.y * cam.z, z: cam.z };
+  };
+  // every character in every colour level, drawn once per text size
+  const buildSprites = px => {
+    spriteSize = px;
+    const sw = Math.ceil(px * 0.62 * dpr), sh = Math.ceil(px * dpr);
+    sprites = [];
+    for(let l = 0; l < LEVELS; l++){
+      const col = rampColor(l / (LEVELS - 1));
+      sprites.push([...CHARS].map(ch => {
+        const c = document.createElement('canvas'); c.width = sw; c.height = sh;
+        const x = c.getContext('2d');
+        x.font = '300 ' + Math.round(px * 0.78 * dpr) + 'px "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
+        x.textAlign = 'center'; x.textBaseline = 'middle';
+        x.fillStyle = 'rgb(' + col.join(',') + ')';
+        x.fillText(ch, sw / 2, sh / 2 + 1);
+        return c;
+      }));
+    }
+  };
+  const size = () => {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = innerWidth; h = innerHeight;
+    cv.width = w * dpr; cv.height = h * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    glow.width = Math.ceil(w / 10); glow.height = Math.ceil(h / 10);
+    dirty = true;
+  };
+  const draw = () => {
+    const { ox, oy, z } = camera();
+    ctx.clearRect(0, 0, w, h);
+    // 1. the soft glow underneath, at a tenth of the resolution and scaled up
+    const gw = glow.width, gh = glow.height, img = gctx.createImageData(gw, gh), d = img.data;
+    for(let gy = 0; gy < gh; gy++) for(let gx = 0; gx < gw; gx++){
+      const val = field(((gx + 0.5) * 10 - ox) / z, ((gy + 0.5) * 10 - oy) / z);
+      const a = Math.min(1, val) * 0.32;
+      if(a < 0.01) continue;
+      const col = rampColor(val * 0.8), i = (gy * gw + gx) * 4;
+      d[i] = col[0]; d[i + 1] = col[1]; d[i + 2] = col[2]; d[i + 3] = a * 255;
+    }
+    gctx.putImageData(img, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(glow, 0, 0, gw * 10, gh * 10);
+    // 2. the characters, on a grid fixed to the map; far out, cells merge so text stays readable
+    const k = Math.max(1, Math.ceil(9 / (CH * z)));
+    const cw = CW * k, ch = CH * k, sx = cw * z, sy = ch * z;
+    const px = Math.round(sy);
+    if(!sprites || px !== spriteSize) buildSprites(px);
+    const X0 = Math.floor((-ox / z) / cw) * cw, Y0 = Math.floor((-oy / z) / ch) * ch;
+    const tick = Math.floor(t * 9);
+    for(let Y = Y0; Y < (h - oy) / z + ch; Y += ch){
+      const screenY = oy + Y * z;
+      for(let X = X0; X < (w - ox) / z + cw; X += cw){
+        const val = field(X + cw / 2, Y + ch / 2);
+        if(val < 0.08) continue;
+        const cx = X / cw, cy = Y / ch;
+        if(hash(cx, cy) > 0.93) continue;                                      // nearly every cell has a character
+        const wobble = (hash(cx * 2.31 + tick * 17.7, cy) - 0.5) * 0.16 + (hash(cx * 1.73, cy + 4.1) - 0.5) * 0.1;   // characters flicker and swap
+        const tone = Math.min(1, Math.max(0, Math.pow(Math.min(1, val), 0.75) + wobble));
+        const ci = Math.max(1, Math.round(tone * (CHARS.length - 1)));
+        const li = Math.min(LEVELS - 1, Math.round(tone * (LEVELS - 1)));
+        ctx.globalAlpha = 0.45 + 0.55 * tone;
+        ctx.drawImage(sprites[li][ci], ox + X * z, screenY, sx, sy);
+      }
+    }
+    ctx.globalAlpha = 1;
+    dirty = false;
+  };
+  const frame = now => {
+    raf = requestAnimationFrame(frame);
+    const dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
+    last = now;
+    if(!still) t += dt * 0.5;
+    if(dirty || (!still && now - lastDraw > 40)){ lastDraw = now; draw(); }
+  };
+  const on = () => document.documentElement.getAttribute('data-theme') === 'ascii' && !document.hidden;
+  const update = () => {
+    if(on()){
+      if(!w) size();
+      dirty = true;
+      if(!raf){ last = 0; raf = requestAnimationFrame(frame); }
+    } else if(raf){ cancelAnimationFrame(raf); raf = 0; }
+  };
+  new MutationObserver(update).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
+  document.addEventListener('visibilitychange', update);
+  addEventListener('resize', () => { if(w){ size(); } });
+  update();
+  return { moved: () => { dirty = true; } };   // the map moved: redraw on the next frame
+})();
+window.wfAscii = asciiSky;
+
+/* The Snow theme: pixel snowflakes from the Pixel Snow effect, drawn crisp.
+   Five depth levels (small, dim and slow far away; big, bright and fast up
+   close), each flake swaying, drifting on a light wind and now and then
+   twinkling, with a soft glow. Like the petals they live in map coordinates
+   inside a repeating tile, so the snow pans and zooms with the bubbles. */
+const snowSky = (() => {
+  const cv = document.getElementById('snow');
+  if(!cv) return null;
+  const ctx = cv.getContext('2d');
+  const still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // the effect's "snowflake" sprites: '@' core, 'o' body, 'x' tips, '.' empty;
+  // levels 0-4, then alternate shapes for levels 2-4
+  const SPRITES = [
+    ['@'],
+    ['.x.', 'x@x', '.x.'],
+    ['..x..', 'x.o.x', '.o@o.', 'x.o.x', '..x..'],
+    ['...x...', '.x.o.x.', '..ooo..', 'xoo@oox', '..ooo..', '.x.o.x.', '...x...'],
+    ['....x....', '.x..o..x.', '..o.o.o..', '...ooo...', 'xooo@ooox', '...ooo...', '..o.o.o..', '.x..o..x.', '....x....'],
+    ['x...x', '.o.o.', '..@..', '.o.o.', 'x...x'],
+    ['x..x..x', '.o.o.o.', '..ooo..', 'xoo@oox', '..ooo..', '.o.o.o.', 'x..x..x'],
+    ['x...x...x', '.o..o..o.', '..o.o.o..', '...ooo...', 'xooo@ooox', '...ooo...', '..o.o.o..', '.o..o..o.', 'x...x...x'],
+  ];
+  const WEIGHTS = [0.46, 0.27, 0.15, 0.08, 0.04];
+  const FALL = [16, 24, 34, 48, 66];          // map units per second, by level
+  const LIGHT = [0.42, 0.58, 0.76, 0.92, 1];
+  const PIXEL = 2.4;                          // one sprite pixel, in map units (the effect's 3, made 20% smaller)
+  let list = [], w = 0, h = 0, dpr = 1, raf = 0, last = 0, t = 0, built = 0, imgs = [];
+  const pickLevel = () => { let r = Math.random(), acc = 0; for(let l = 0; l < 5; l++){ acc += WEIGHTS[l]; if(r <= acc) return l; } return 4; };
+  const make = () => {
+    const level = pickLevel();
+    return { level, alt: level >= 2 && Math.random() < 0.5, x: Math.random() * (w + 80), y: Math.random() * (h + 40),
+      phase: Math.random() * 6.28, rate: 0.6 + Math.random() * 0.9, drift: 0.7 + Math.random() * 0.6, sparkle: Math.random() * 100 };
+  };
+  // each sprite drawn once per on-screen pixel size, white with a soft glow baked in
+  const build = p => {
+    built = p;
+    imgs = SPRITES.map(rows => {
+      const n = rows.length, pad = Math.ceil(p * 3), c = document.createElement('canvas');
+      c.width = c.height = Math.ceil((n * p + pad * 2) * dpr);
+      const x = c.getContext('2d');
+      x.scale(dpr, dpr);
+      const paint = () => rows.forEach((line, ry) => [...line].forEach((m, rx) => {
+        if(m === '.') return;
+        const core = m === '@' ? 1 : m === 'o' ? 0.5 : 0;
+        x.fillStyle = 'rgba(255,255,255,' + (0.82 + core * 0.18) + ')';
+        x.fillRect(pad + rx * p, pad + ry * p, p, p);
+      }));
+      x.shadowColor = 'rgba(210,232,255,0.85)'; x.shadowBlur = p * 2.2; paint();   // the glow
+      x.shadowBlur = 0; paint();                                                   // crisp pixels on top
+      return { img: c, size: n * p + pad * 2 };
+    });
+  };
+  const size = () => {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = innerWidth; h = innerHeight;
+    cv.width = w * dpr; cv.height = h * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    const want = Math.round(Math.min(420, w * h / 2600));
+    while(list.length < want) list.push(make());
+    list.length = want;
+    built = 0;
+  };
+  const wrap = (v, lo, hi) => lo + (((v - lo) % (hi - lo)) + (hi - lo)) % (hi - lo);
+  const camera = () => {
+    if(typeof cam !== 'object' || view !== 'hub') return { ox: 0, oy: 0, z: 1 };
+    const r = hubRect();
+    return { ox: r.left + r.width / 2 - cam.x * cam.z, oy: r.top + r.height / 2 - cam.y * cam.z, z: cam.z };
+  };
+  const draw = () => {
+    const { ox, oy, z } = camera();
+    const p = Math.max(0.75, Math.round(PIXEL * z * 20) / 20);  // sprites are redrawn only when the size really changes
+    if(p !== built) build(p);
+    const tw = w + 80, th = h + 40;
+    ctx.clearRect(0, 0, w, h);
+    for(const f of list){
+      const sway = Math.sin(t * f.rate + f.phase) * 0.5 * (6 + f.level * 7) * f.drift;
+      const fx = wrap(f.x + sway, 0, tw), fy = wrap(f.y, 0, th);
+      const s = imgs[f.level >= 2 && f.alt ? f.level + 3 : f.level];
+      const spark = Math.pow(Math.max(0, Math.sin(t * 0.9 + f.sparkle)), 60) * 0.35;
+      ctx.globalAlpha = Math.min(1, (1 - 0.6 * (1 - LIGHT[f.level])) * (0.85 + spark * 0.6));
+      const m = s.size;
+      const i0 = Math.floor(((-m - ox) / z - fx) / tw), i1 = Math.floor(((w + m - ox) / z - fx) / tw);
+      const j0 = Math.floor(((-m - oy) / z - fy) / th), j1 = Math.floor(((h + m - oy) / z - fy) / th);
+      for(let i = i0; i <= i1; i++) for(let j = j0; j <= j1; j++)
+        ctx.drawImage(s.img, Math.round(ox + (fx + i * tw) * z - m / 2), Math.round(oy + (fy + j * th) * z - m / 2), m, m);
+    }
+    ctx.globalAlpha = 1;
+  };
+  const frame = now => {
+    raf = requestAnimationFrame(frame);
+    const dt = last ? Math.min(0.05, (now - last) / 1000) : 0.016;
+    last = now; t += dt;
+    for(const f of list){
+      const parallax = 1 - 0.6 * (1 - (f.level + 1) / 5) * 0.75;
+      f.y += FALL[f.level] * parallax * f.drift * dt;
+      f.x += 11.5 * parallax * f.drift * dt;                     // the light wind
+    }
+    draw();
+  };
+  const on = () => document.documentElement.getAttribute('data-theme') === 'snow' && !document.hidden;
+  const update = () => {
+    if(on()){
+      if(!w) size();
+      if(still){ draw(); return; }
+      if(!raf){ last = 0; raf = requestAnimationFrame(frame); }
+    } else if(raf){ cancelAnimationFrame(raf); raf = 0; }
+  };
+  new MutationObserver(update).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
+  document.addEventListener('visibilitychange', update);
+  addEventListener('resize', () => { if(w){ size(); if(still && on()) draw(); } });
+  update();
+  return { moved: () => { if(still && on() && w) draw(); } };
+})();
+window.wfSnow = snowSky;
+
+const RETIRED_THEMES = { glass:'clarity', glassdark:'claritydark', orbit:'clarity', prism:'clarity', dark:'claritydark' };
 
 let look = { theme:DEFAULT_THEME, font:'publicsans', scale:100, textColor:'' };
 
@@ -869,7 +1817,8 @@ function applyLook(l){
     ? l.theme
     : (RETIRED_THEMES[l.theme] || DEFAULT_THEME);
   if(theme !== l.theme) l.theme = theme;        // carry a retired id forward
-  root.setAttribute('data-theme', theme);
+  root.setAttribute('data-theme', theme === 'custom' && !customBg ? DEFAULT_THEME : theme);   // no picture yet: fall back
+  applyCustomBg(l);
   const f = FONTS.find(x => x.id === l.font) || FONTS[0];
   if(f.web) loadWebFont(f.web);
   root.style.setProperty('--font-ui', f.stack);
@@ -899,6 +1848,129 @@ function saveLook(){
   renderSettings();
 }
 function setTheme(id){ look.theme = id; saveLook(); }
+
+/* ---- "Choose image": the visitor's own picture as the background ----
+   For this visit only: it never leaves the browser and is not stored, so a
+   refresh goes back to the default look. Large pictures are shrunk (longest
+   side 2400px) so the page stays quick, and the picture is checked for whether
+   it is mostly light or dark so the panels and text can match it. */
+let customBg = null;
+// clear anything an earlier version stored, so old pictures and presets don't come back
+try{ Object.keys(localStorage).filter(k => k === 'wf_bg' || k === 'wf_presets' || k.indexOf('wf_preset_bg_') === 0).forEach(k => localStorage.removeItem(k)); }catch(e){}
+function applyCustomBg(l){
+  const root = document.documentElement, el = document.getElementById('custom-bg');
+  if(el) el.style.backgroundImage = customBg ? 'url(' + customBg + ')' : '';
+  root.setAttribute('data-bg-tone', l.bgTone === 'light' ? 'light' : 'dark');
+  root.style.setProperty('--bg-dim', String((typeof l.bgDim === 'number' ? l.bgDim : 20) / 100));
+  const controls = document.getElementById('bg-controls');
+  if(controls) controls.hidden = !(customBg && l.theme === 'custom');
+  const dim = document.getElementById('bg-dim'), read = document.getElementById('bg-dim-read');
+  const v = typeof l.bgDim === 'number' ? l.bgDim : 20;
+  if(dim && document.activeElement !== dim) dim.value = v;
+  if(read) read.textContent = v + '%';
+}
+function pickBackground(){ const f = document.getElementById('bg-file'); if(f) f.click(); }
+async function loadBackground(file){
+  if(!file || !/^image\//.test(file.type)){ toast('That file is not a picture'); return; }
+  const url = URL.createObjectURL(file);
+  try{
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+    const k = Math.min(1, 2400 / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(img.naturalWidth * k)); c.height = Math.max(1, Math.round(img.naturalHeight * k));
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    // mostly light or mostly dark? sample it small and average the brightness
+    const t = document.createElement('canvas'); t.width = t.height = 24;
+    const tx = t.getContext('2d'); tx.drawImage(img, 0, 0, 24, 24);
+    const d = tx.getImageData(0, 0, 24, 24).data; let lum = 0;
+    for(let i = 0; i < d.length; i += 4) lum += (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255;
+    lum /= d.length / 4;
+    customBg = c.toDataURL('image/jpeg', 0.86);
+    look.bgTone = lum > 0.56 ? 'light' : 'dark';
+    look.bgDim = 20;                                         // a light tint to start; the slider changes it
+    look.theme = 'custom';
+    saveLook();
+    toast('Background set');
+  }catch(e){
+    toast('Could not open that picture');
+  }finally{ URL.revokeObjectURL(url); }
+}
+function removeBackground(){
+  customBg = null;
+  if(look.theme === 'custom') look.theme = DEFAULT_THEME;
+  saveLook();
+}
+function setBgDim(v){ look.bgDim = Number(v) || 0; saveLook(); }
+
+/* ---- your own themes ("Save as my theme") ----
+   A saved theme is the whole appearance at once: theme, font, text size, text
+   colour and, with a picture, the picture and its tint. It shows up in the
+   theme grid like the built-in themes. Like everything in the demo it lasts
+   for this visit only; a refresh starts fresh. */
+const LOOK_KEYS = ['theme', 'font', 'scale', 'textColor', 'bgTone', 'bgDim'];
+let presets = [];
+const savePresets = () => {};      // demo: kept for this visit only
+const presetBg = id => { const p = presets.find(x => x.id === id); return p ? p.bg || null : null; };
+const sameLook = p => LOOK_KEYS.every(k => k === 'bgTone' || k === 'bgDim' ? (p.theme !== 'custom' || p[k] === look[k]) : (p[k] || '') === (look[k] || ''))
+  && (p.theme !== 'custom' || presetBg(p.id) === customBg);
+function openSavePreset(){
+  const t = THEMES.find(x => x.id === look.theme);
+  openModal('Save as my theme', `
+    <div class="field"><label>Name</label>
+      <input class="input" id="preset-name" maxlength="30" placeholder="e.g. Late-night study" value="${esc(t ? t.name : '')}"
+        onkeydown="if(event.key==='Enter') savePreset()"></div>
+    <p style="margin:0; font-size:0.78rem; color:var(--text-muted);">Saves your theme, font, text size and colour${look.theme === 'custom' ? ', plus your picture and its tint' : ''}.</p>
+    <button class="btn btn-primary" onclick="savePreset()">Save theme</button>`);
+  setTimeout(() => { const i = document.getElementById('preset-name'); if(i){ i.focus(); i.select(); } }, 40);
+}
+function savePreset(){
+  const name = ((document.getElementById('preset-name') || {}).value || '').trim();
+  if(!name) return;
+  const p = { id: uid(), name };
+  LOOK_KEYS.forEach(k => { if(look[k] !== undefined) p[k] = look[k]; });
+  if(look.theme === 'custom' && customBg) p.bg = customBg;
+  presets.push(p);
+  savePresets();
+  closeModal();
+  renderSettings();
+  toast('Saved "' + name + '" to your themes');
+}
+function applyPreset(id){
+  const p = presets.find(x => x.id === id);
+  if(!p) return;
+  if(p.theme === 'custom'){
+    const pic = presetBg(p.id);
+    if(pic) customBg = pic;
+  }
+  look = Object.assign({}, look);
+  LOOK_KEYS.forEach(k => { if(p[k] !== undefined) look[k] = p[k]; });
+  saveLook();
+}
+function deletePreset(id){
+  const p = presets.find(x => x.id === id);
+  presets = presets.filter(x => x.id !== id);
+  savePresets();
+  renderSettings();
+  if(p) toast('Deleted "' + p.name + '"');
+}
+// paste a picture (⌘V) or drop one onto the Appearance panel while it is open
+document.addEventListener('paste', e => {
+  if(!document.getElementById('settings-sheet').classList.contains('open')) return;
+  const item = [...(e.clipboardData ? e.clipboardData.items : [])].find(i => i.type.startsWith('image/'));
+  if(item){ e.preventDefault(); loadBackground(item.getAsFile()); }
+});
+(function wireDrop(){
+  const card = document.querySelector('#settings-sheet .sheet-card');
+  if(!card) return;
+  card.addEventListener('dragover', e => { if([...e.dataTransfer.types].includes('Files')){ e.preventDefault(); card.classList.add('dropping'); } });
+  card.addEventListener('dragleave', () => card.classList.remove('dropping'));
+  card.addEventListener('drop', e => {
+    card.classList.remove('dropping');
+    const f = [...(e.dataTransfer.files || [])].find(x => x.type.startsWith('image/'));
+    if(f){ e.preventDefault(); loadBackground(f); }
+  });
+})();
 function setFont(id){ look.font = id; saveLook(); }
 function setScale(v){ look.scale = Number(v) || 100; saveLook(); }
 function setTextColor(col){ look.textColor = col; saveLook(); }
@@ -906,13 +1978,30 @@ function resetLook(){ look = { theme: look.theme, font:'publicsans', scale:100, 
 function openSettings(){ openSheet('settings-sheet'); renderSettings(); }
 function renderSettings(){
   const grid = document.getElementById('theme-grid');
-  if(grid) grid.innerHTML = THEMES.map(t => `
+  const mineOn = presets.find(sameLook);
+  if(grid) grid.innerHTML = THEMES.filter(t => t.id !== 'custom').map(t => `
     <button class="theme-card ${look.theme === t.id ? 'on' : ''}" onclick="setTheme('${t.id}')">
       <span class="theme-swatch" style="background-color:${t.ink};
         background-image:linear-gradient(${t.line} 1px, transparent 1px), linear-gradient(90deg, ${t.line} 1px, transparent 1px);
         background-size:9px 9px;"><i style="background:${t.dot}"></i></span>
       <span>${esc(t.name)}</span>
-    </button>`).join('');
+    </button>`).join('')
+    // your own themes, made with "Save as my theme"
+    + presets.map(p => {
+      const t = THEMES.find(x => x.id === p.theme) || THEMES[0];
+      const sw = p.bg ? `<span class="theme-swatch custom" style="background-image:url(${p.bg})"></span>`
+        : `<span class="theme-swatch" style="background-color:${t.ink};
+            background-image:linear-gradient(${t.line} 1px, transparent 1px), linear-gradient(90deg, ${t.line} 1px, transparent 1px);
+            background-size:9px 9px;"><i style="background:${t.dot}"></i></span>`;
+      return `<button class="theme-card mine ${mineOn === p ? 'on' : ''}" onclick="applyPreset('${p.id}')" title="${esc(p.name)}">
+        ${sw}<span>${esc(p.name)}</span>
+        <span class="theme-del" role="button" aria-label="Delete ${esc(p.name)}" title="Delete" onclick="event.stopPropagation(); deletePreset('${p.id}')">✕</span>
+      </button>`;
+    }).join('')
+    // always last, always the picker
+    + `<button class="theme-card ${look.theme === 'custom' && !mineOn ? 'on' : ''}" onclick="pickBackground()" title="Use a picture from your computer">
+        <span class="theme-swatch empty">+</span><span>Choose image</span>
+      </button>`;
   const sel = document.getElementById('set-font');
   if(sel && sel.options.length !== FONTS.length){
     sel.innerHTML = FONTS.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('');
@@ -1211,8 +2300,36 @@ function openSection(id){
 /* ============ new / delete section ============ */
 let pickedTone = 'teal';
 let pickedSize = R_SEC;
+let toneTouched = false;          // once a colour is picked by hand, changing the parent no longer overrides it
+let pickedTint = 45;
+/* How strongly a section is filled with its colour: 0 is the theme's own
+   colour, 100 is full colour. Sections made before this existed get 45. */
+const TINT_DEFAULT = 45;
+const tintOf = b => (b && typeof b.tint === 'number') ? b.tint : TINT_DEFAULT;
+function tintSlider(value, oninput, onchange){
+  return `<div class="tint-row" id="tint-row">
+      <span>Natural</span>
+      <input class="ink-size tint-slider" id="tint-slider" type="range" min="0" max="100" value="${value}"
+             oninput="${oninput}" ${onchange ? `onchange="${onchange}"` : ''} aria-label="How much colour">
+      <span>Full colour</span>
+    </div>`;
+}
+const TONE_NAMES = { none:'No colour', teal:'Teal', amber:'Amber', violet:'Violet', green:'Green', rose:'Rose', blue:'Blue' };
+/* the swatches: "no colour" first, then the six section colours */
+function toneSwatches(selected, onPick){
+  return ['none'].concat(TONES).map(t =>
+    `<button class="tone-swatch tone-${t} ${t === selected ? 'sel' : ''}" data-tone="${t}" onclick="${onPick}('${t}')"
+       title="${TONE_NAMES[t]}" aria-label="${TONE_NAMES[t]}"></button>`).join('');
+}
+/* a sub-section starts out in its parent's colour */
+function inheritedTone(parentId){
+  const p = parentId ? bubbleById(parentId) : null;
+  return p ? (p.tone || 'teal') : TONES[state.bubbles.length % TONES.length];
+}
 function openNewBubbleModal(parentId){
-  pickedTone = TONES[state.bubbles.length % TONES.length];
+  toneTouched = false;
+  pickedTone = inheritedTone(parentId);
+  pickedTint = parentId ? tintOf(bubbleById(parentId)) : TINT_DEFAULT;
   const options = sortedBubbles()
     .map(b => `<option value="${b.id}" ${b.id === parentId ? 'selected' : ''}>${esc(b.name)}</option>`)
     .join('');
@@ -1221,14 +2338,16 @@ function openNewBubbleModal(parentId){
     <div class="field"><label>Name</label><input class="input" id="nb-name" placeholder="School, Work, Finance, Gym…"></div>
     <div class="field"><label>Branches off</label>
       <select class="select" id="nb-parent" onchange="parentChanged()">
-        <option value="">Atlas (the middle)</option>
+        <option value="">Cosmo (the middle)</option>
         ${options}
       </select>
     </div>
     <div class="field"><label>Colour</label>
       <div class="tone-picker" id="tone-picker">
-        ${TONES.map(t => `<button class="tone-swatch tone-${t} ${t===pickedTone?'sel':''}" data-tone="${t}" onclick="pickTone('${t}')" aria-label="${t}"></button>`).join('')}
+        ${toneSwatches(pickedTone, 'pickTone')}
       </div>
+      ${tintSlider(pickedTint, 'pickedTint = +this.value; previewTint();')}
+      <div class="tint-preview tone-${pickedTone}" id="tint-preview" style="--tint:${pickedTint}">Preview</div>
     </div>
     <div class="field"><label>Size <span class="mono" id="nb-size-out" style="color:var(--text-muted)">${pickedSize}</span></label>
       <input class="ink-size" style="width:100%" id="nb-size" type="range" min="${R_MIN}" max="${R_MAX}" value="${pickedSize}"
@@ -1243,6 +2362,7 @@ function openNewBubbleModal(parentId){
    have already moved the slider yourself */
 function parentChanged(){
   const sel = document.getElementById('nb-parent');
+  if(sel && !toneTouched) selectTone(inheritedTone(sel.value || null));   // follow the new parent's colour
   const slider = document.getElementById('nb-size');
   if(!sel || !slider || slider.dataset.touched) return;
   const want = DEPTH_R[Math.min(sel.value ? depthOf(sel.value) + 1 : 0, DEPTH_R.length - 1)];
@@ -1251,9 +2371,65 @@ function parentChanged(){
   const out = document.getElementById('nb-size-out');
   if(out) out.textContent = want;
 }
-function pickTone(t){
+function selectTone(t){
   pickedTone = t;
   document.querySelectorAll('#tone-picker .tone-swatch').forEach(s => s.classList.toggle('sel', s.dataset.tone === t));
+  previewTint();
+}
+/* the little preview bubble in the form, and hiding the slider for "no colour" */
+function previewTint(){
+  const pv = document.getElementById('tint-preview');
+  if(pv){ pv.className = 'tint-preview tone-' + pickedTone; pv.style.setProperty('--tint', pickedTint); }
+  const row = document.getElementById('tint-row');
+  if(row) row.classList.toggle('off', pickedTone === 'none');
+}
+function pickTone(t){ toneTouched = true; selectTone(t); }
+
+/* Colour-code a section any time: click the dot next to its name, or
+   right-click its bubble on the map. Undo puts the old colour back. */
+let toneTarget = null;
+function openTonePicker(id){
+  const b = bubbleById(id);
+  if(!b) return;
+  toneTarget = id;
+  openModal('Colour for ' + b.name, `
+    <div class="tone-picker tone-picker-lg" id="tone-picker">${toneSwatches(b.tone || 'teal', 'setSectionTone')}</div>
+    <div class="field"><label>How much colour</label>
+      ${tintSlider(tintOf(b), 'liveTint(+this.value)', 'saveTint(+this.value)')}
+    </div>
+    <button class="btn btn-primary" onclick="closeModal()">Done</button>`);
+  const row = document.getElementById('tint-row');
+  if(row) row.classList.toggle('off', (b.tone || 'teal') === 'none');
+  tintAtOpen = tintOf(b);
+}
+async function setSectionTone(t){
+  const b = bubbleById(toneTarget);
+  if(!b) return;
+  const before = b.tone || 'teal';
+  document.querySelectorAll('#tone-picker .tone-swatch').forEach(s => s.classList.toggle('sel', s.dataset.tone === t));
+  const row = document.getElementById('tint-row');
+  if(row) row.classList.toggle('off', t === 'none');
+  if(t === before) return;
+  const write = v => cols.bubbles.update(b.id, { tone: v }).catch(() => {});
+  await write(t);
+  record('colouring "' + b.name + '" ' + TONE_NAMES[t].toLowerCase(), () => write(before), () => write(t));
+}
+/* dragging the slider repaints the bubble as you go;
+   letting go saves it, and undo puts the strength back to where it started */
+let tintAtOpen = TINT_DEFAULT;
+function liveTint(v){
+  const el = bubbleEls.get(toneTarget);
+  if(el) el.style.setProperty('--tint', String(v));
+}
+async function saveTint(v){
+  const b = bubbleById(toneTarget);
+  if(!b) return;
+  const before = tintAtOpen;
+  if(v === before) return;
+  const write = x => cols.bubbles.update(b.id, { tint: x }).catch(() => {});
+  await write(v);
+  tintAtOpen = v;
+  record('changing how much colour "' + b.name + '" has', () => write(before), () => write(v));
 }
 async function submitNewBubble(){
   const name = (document.getElementById('nb-name').value || '').trim();
@@ -1263,7 +2439,7 @@ async function submitNewBubble(){
   const slider = document.getElementById('nb-size');
   const size = slider ? clamp(+slider.value, R_MIN, R_MAX) : R_SEC;
   const auto = DEPTH_R[Math.min(parentId ? depthOf(parentId) + 1 : 0, DEPTH_R.length - 1)];
-  const doc = { name, tone: pickedTone, widgets: [], createdAt: Date.now() };
+  const doc = { name, tone: pickedTone, tint: pickedTint, widgets: [], createdAt: Date.now() };
   if(parentId) doc.parentId = parentId;
   // only pin a size if he actually chose one; otherwise let it follow its depth
   if(size !== auto) doc.size = size;
@@ -1501,8 +2677,8 @@ function renderSection(){
   if(!widgets.length && !secTasks.length){
     grid.insertAdjacentHTML('afterbegin', `<div class="widget size-md"><div class="w-body">
       <div style="font-weight:650; font-size:0.92rem;">Nothing here yet</div>
-      <div style="font-size:0.85rem; color:var(--text-muted); line-height:1.55;">Add a panel yourself, or open Atlas and say what this section is for — it will build the panels for you.</div>
-      <button class="btn btn-primary btn-sm" style="align-self:flex-start;" onclick="openHelperForDesign()">Ask Atlas</button>
+      <div style="font-size:0.85rem; color:var(--text-muted); line-height:1.55;">Add a panel yourself, or open Cosmo and say what this section is for — it will build the panels for you.</div>
+      <button class="btn btn-primary btn-sm" style="align-self:flex-start;" onclick="openHelperForDesign()">Ask Cosmo</button>
     </div></div>`);
   }
 }
@@ -1761,7 +2937,7 @@ function openAddWidget(){
       <select class="select" id="aw-type">${Object.entries(WIDGET_KINDS).map(([k,v]) => `<option value="${k}">${v.label}</option>`).join('')}</select>
     </div>
     <button class="btn btn-primary" onclick="submitAddWidget()">Add panel</button>
-    <p style="margin:0; font-size:0.78rem; color:var(--text-muted);">Not sure? Ask Atlas to lay the whole section out instead.</p>`);
+    <p style="margin:0; font-size:0.78rem; color:var(--text-muted);">Not sure? Ask Cosmo to lay the whole section out instead.</p>`);
 }
 function submitAddWidget(){
   const b = bubbleById(activeBubbleId); if(!b) return;
@@ -2952,7 +4128,7 @@ async function runJobRow(wid, rowId, solo, over){
   if(over && over.jd != null) row.jd = over.jd;
   const resume = (ctx.data.resume || '').trim();
   if(!resume){ setJobStatus(rowId, 'no résumé', 'bad'); return; }
-  if(!sampleFn){ setJobStatus(rowId, 'Atlas unavailable', 'bad'); return; }
+  if(!sampleFn){ setJobStatus(rowId, 'Cosmo unavailable', 'bad'); return; }
 
   try{
     let jd = (row.jd || '').trim();
@@ -3267,7 +4443,7 @@ function hydrate(type, data){
 
 function systemPrompt(){
   return [
-    'You are Atlas, the assistant that runs Andrew\'s personal hub — a bubble app where you are the centre bubble, his to-dos and reminders live in a list in the top bar, and every other bubble is a section of his life (School, Work, Finance, whatever he adds).',
+    'You are Cosmo, the assistant that runs Andrew\'s personal hub — a bubble app where you are the centre bubble, his to-dos and reminders live in a list in the top bar, and every other bubble is a section of his life (School, Work, Finance, whatever he adds).',
     'You are Claude, working inside his hub: you reason, give opinions, push back when something looks off, and you can actually operate the app through your tools — create and delete sections, design a section\'s panels, fill panels with content, add to-dos and reminders, and pin important info.',
     'Designing is the headline feature: when he asks you to build or lay out a section, call readSection first if it already has panels, then designSection with a complete, opinionated layout using the panel types that genuinely fit what that part of his life needs. Choose sizes deliberately (lg for tables and anything wide, sm for single numbers). Seed the panels with sensible starting content where you can, and say in one line what you built and why.',
     'Be direct and warm; short answers unless he wants depth. Offer your actual opinion rather than a list of options. Never invent facts about his life — read the hub first.',
@@ -3289,7 +4465,7 @@ async function callSample(turns, opts){
     const code = e && e.code;
     if(code === 'images_unavailable' && opts.images){
       actStep('Images are not supported here — sending the text on its own');
-      pendingNotice = 'This viewer cannot pass the picture itself to Claude — but the text read off it was sent, so Atlas can still work from it.';
+      pendingNotice = 'This viewer cannot pass the picture itself to Claude — but the text read off it was sent, so Cosmo can still work from it.';
       const next = Object.assign({}, opts); delete next.images;
       next.signal = (chatAbort = new AbortController()).signal;
       return await sampleFn(turns, next);
@@ -3321,7 +4497,7 @@ function errorCopy(e){
   if(code === 'session_expired') return 'Your Claude session expired. Refresh the page and sign in again.';
   if(code === 'refused') return 'Claude would not answer that one. Try rephrasing it.';
   if(code === 'empty_completion') return 'Claude came back with nothing. Try asking for a bit less at once.';
-  if(code === 'invalid_request') return 'Atlas sent a malformed request. Try again — if it keeps happening, tell Claude in the main chat.';
+  if(code === 'invalid_request') return 'Cosmo sent a malformed request. Try again — if it keeps happening, tell Claude in the main chat.';
   if(code === 'sampling_disabled' || code === 'not_declared') return 'Claude is not available for this page right now.';
   return 'Something went wrong' + (code ? ' (' + code + ')' : '') + ' — try again.';
 }
@@ -3498,7 +4674,7 @@ async function think(force){
   try{ sessionStorage.setItem('wf_thought', '1'); }catch(e){}
   document.getElementById('helper-bubble').classList.add('busy');
   try{
-    const prompt = 'You are Atlas, the assistant inside Andrew\'s personal life hub. Here is its current state:\n\n' + hubSnapshot() +
+    const prompt = 'You are Cosmo, the assistant inside Andrew\'s personal life hub. Here is its current state:\n\n' + hubSnapshot() +
       '\n\nIn ONE short sentence (max 22 words), say the single most useful thing you notice right now — something due, something neglected, or a concrete suggestion. No greeting, no preamble, no quotes.';
     const res = await sampleFn(prompt, { modelTier:'quick', cache: force ? { gcTime: 600000, refresh: true } : { gcTime: 600000 } });
     showThought(res.text.trim());
@@ -3526,7 +4702,9 @@ function renderTodoBadge(){
     ? 'To-dos & reminders: ' + open.length + ' open' + (due ? ', ' + due + ' due now' : '') : 'To-dos & reminders';
 }
 function render(){
+  document.documentElement.classList.toggle('hub-mode', view === 'hub');   // locks the page scroll on the hub
   if(view === 'hub') renderHub(); else renderSection();
+  scheduleMinimap();
   renderTodoBadge();
   renderImportant();
   renderTrash();
@@ -3612,7 +4790,7 @@ document.addEventListener('keydown', e => {
 
 
 /* the floating button is gone from view, but everything still marks it busy;
-   mirror that onto the middle bubble so Atlas visibly works */
+   mirror that onto the middle bubble so Cosmo visibly works */
 new MutationObserver(() => {
   const c = document.getElementById('bubble-center');
   if(c) c.classList.toggle('busy', document.getElementById('helper-bubble').classList.contains('busy'));

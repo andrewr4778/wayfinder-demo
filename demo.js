@@ -18,7 +18,8 @@ async function init(){
         const doc = arr.find(d => d.id === 'ui');
         if(doc){
           look = { theme: doc.theme || DEFAULT_THEME, font: doc.font || 'publicsans',
-                   scale: doc.scale || 100, textColor: doc.textColor || '' };
+                   scale: doc.scale || 100, textColor: doc.textColor || '',
+                   bgTone: doc.bgTone || 'dark', bgDim: typeof doc.bgDim === 'number' ? doc.bgDim : 20 };   // "Your image" settings
           applyLook(look);
           if(document.getElementById('settings-sheet').classList.contains('open')) renderSettings();
         }
@@ -35,7 +36,7 @@ async function init(){
   });
 
   seedDemo();
-  // the floating helper button stays hidden: Atlas lives in the middle bubble now
+  // the floating helper button stays hidden: Cosmo lives in the middle bubble now
 
   attachInk();
   attachCamera();
@@ -85,7 +86,7 @@ function seedDemo(){
   ]});
   B('b-projects', { name:'Projects', tone:'violet', widgets:[
     W('progress', 'Wayfinder roadmap', 'md', { items:[
-      { label:'Bubble map & panels', pct:100 }, { label:'Atlas, the assistant that edits the hub', pct:80 }, { label:'Calendar sync', pct:15 } ] }),
+      { label:'Bubble map & panels', pct:100 }, { label:'Cosmo, the assistant that edits the hub', pct:80 }, { label:'Calendar sync', pct:15 } ] }),
     W('notes', 'Ideas', 'sm', { text:'Pull class deadlines straight from Canvas.\nWidget for bus times.' }),
   ]});
   B('b-misc', { name:'Misc', tone:'amber', widgets:[
@@ -340,7 +341,7 @@ async function demoAct(text, tools){
   }
 
   return 'This demo understands a few commands. Try "Add essay due Monday", "Make a section for Travel", ' +
-    '"Pin locker combo 12-34-08", or "What\'s due this week?". In the full app Atlas runs on Claude and handles anything you type.';
+    '"Pin locker combo 12-34-08", or "What\'s due this week?". In the full app Cosmo runs on Claude and handles anything you type.';
 }
 
 /* ================= GUIDED TOUR =================
@@ -710,14 +711,14 @@ const STEPS = [
     async play(){
       if(view !== 'hub') goHub();
       await fitView();
-      say(1, 'Meet Atlas', 'The bubble in the middle is Atlas, your assistant. It can see your whole hub and change it for you.');
+      say(1, 'Meet Cosmo', 'The bubble in the middle is Cosmo, your assistant. It can see your whole hub and change it for you.');
       spot('#bubble-center', { round:true, pad:10 });
       await beat(1300);
       await press('#bubble-center', { action: () => openHelper(), round:true, pad:10 });
       await beat(420);
       spot('#helper-sheet .sheet-card', { pad:-3 });
-      say(1, 'Meet Atlas', 'This is Atlas. Ask a question or tell it what to add, and it does the work. You will try it in a few steps, so close it with the X for now.');
-      await press('#helper-sheet .sheet-head .icon-btn', { area:'#helper-sheet .sheet-card', pad:-3, label:'Your turn: close Atlas' });
+      say(1, 'Meet Cosmo', 'This is Cosmo. Ask a question or tell it what to add, and it does the work. You will try it in a few steps, so close it with the X for now.');
+      await press('#helper-sheet .sheet-head .icon-btn', { area:'#helper-sheet .sheet-card', pad:-3, label:'Your turn: close Cosmo' });
       await beat(350);
       say(1, 'Your to-dos', 'Every to-do and reminder from every part of your life lives behind the checklist up top. The number shows what is due right now.');
       spot('#todo-btn', { round:true, pad:6 });
@@ -886,7 +887,7 @@ const STEPS = [
         demo: () => dragOnto('Chemistry', 'School'),
       });
       spot(bubbleNamed('Chemistry'), { round:true, pad:12 });
-      say(7, 'Detach and reattach', 'Back under School. Drop any bubble onto another to attach it, or onto Atlas in the middle to put it back on the main map.');
+      say(7, 'Detach and reattach', 'Back under School. Drop any bubble onto another to attach it, or onto Cosmo in the middle to put it back on the main map.');
       await tsleep(2000);
     },
   },
@@ -913,8 +914,8 @@ const STEPS = [
   },
   {
     async play(){
-      // this step plays by itself: the visitor just watches Atlas work
-      say(9, 'Ask Atlas', 'Watch Atlas at work. You tell it what you need in plain words, and it does the rest.');
+      // this step plays by itself: the visitor just watches Cosmo work
+      say(9, 'Ask Cosmo', 'Watch Cosmo at work. You tell it what you need in plain words, and it does the rest.');
       await backToHub();
       spot('#bubble-center', { round:true, pad:10 });
       await tsleep(900);
@@ -925,7 +926,7 @@ const STEPS = [
       await tsleep(250);
       await tap('#send-btn');
       spot('#chat-body', { pad:-3 });
-      say(9, 'Ask Atlas', 'It reads the hub, works out the date, matches "chemistry" to the Chemistry bubble and adds the to-do.');
+      say(9, 'Ask Cosmo', 'It reads the hub, works out the date, matches "chemistry" to the Chemistry bubble and adds the to-do.');
       if(demoRun) await demoRun;
       await tsleep(1600);
       await tap('#helper-sheet .sheet-head .icon-btn', () => closeHelper());
@@ -935,8 +936,8 @@ const STEPS = [
       await tsleep(600);
       spot(() => { const w = document.querySelectorAll('#widget-grid .widget'); return w[1] || w[0]; }, { pad:6 });
       const t = state.tasks.find(x => /chemistry homework/i.test(x.text));
-      say(9, 'Ask Atlas', 'Open Chemistry and the homework is already there' + (t && t.due ? ', due ' + whenLabel(t.due) : '') +
-        '. In the full app Atlas runs on Claude, so it can also lay out a whole bubble from one sentence.');
+      say(9, 'Ask Cosmo', 'Open Chemistry and the homework is already there' + (t && t.due ? ', due ' + whenLabel(t.due) : '') +
+        '. In the full app Cosmo runs on Claude, so it can also lay out a whole bubble from one sentence.');
       await tsleep(1800);
     },
   },

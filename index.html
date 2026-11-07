@@ -6,7 +6,7 @@
   <title>Wayfinder Demo</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
   <link rel="icon" type="image/svg+xml" href="logo.svg">
-  <link rel="stylesheet" href="styles.css?v=202611070128">
+  <link rel="stylesheet" href="styles.css?v=202611071502">
 </head>
 <body>
 <!-- the Wayfinder mark, drawn once and reused with <use href="#wf-logo">; it takes the colour of its parent -->
@@ -29,7 +29,14 @@
     </g>
   </symbol>
 </svg>
+<div id="custom-bg" aria-hidden="true"></div>
 <div id="sky" aria-hidden="true"><i class="band"></i><i class="dust"></i><i class="stars s1"></i><i class="stars s2"></i><i class="stars s3"></i></div>
+<canvas id="story" aria-hidden="true"></canvas>
+<canvas id="meteors" aria-hidden="true"></canvas>
+<canvas id="astronaut" aria-hidden="true"></canvas>
+<canvas id="ascii" aria-hidden="true"></canvas>
+<canvas id="petals" aria-hidden="true"></canvas>
+<canvas id="snow" aria-hidden="true"></canvas>
 
 <div class="history-bar">
   <button class="hist-btn" id="undo-btn" onclick="doUndo()" aria-label="Undo" disabled>
@@ -81,6 +88,11 @@
           <button class="ink-btn" onclick="clearInk()" title="Clear the drawing">Clear</button>
         </span>
       </div>
+      <div class="minimap" id="minimap" hidden>
+        <div class="minimap-head"><span>Map</span><span class="minimap-tip">click to jump</span></div>
+        <canvas id="minimap-canvas" aria-label="Map of the whole space: click to jump there"></canvas>
+        <button class="btn btn-sm minimap-back" onclick="fitView()">&#8617; Back to sections</button>
+      </div>
       <div class="zoom-bar">
         <button class="zoom-btn" onclick="zoomBy(1/1.25)" title="Zoom out">&minus;</button>
         <span class="zoom-level mono" id="zoom-level">100%</span>
@@ -95,11 +107,11 @@
     <div class="sec-head">
       <div class="sec-title-wrap" id="sec-title-wrap">
         <button class="btn btn-sm btn-ghost" onclick="goHub()" title="Back to hub">‹ Hub</button>
-        <span class="sec-dot" id="sec-dot"></span>
+        <button class="sec-dot" id="sec-dot" onclick="openTonePicker(activeBubbleId)" title="Change this section's colour" aria-label="Change this section's colour"></button>
         <input class="sec-title" id="sec-title" aria-label="Section name">
       </div>
       <div class="sec-actions">
-        <button class="btn btn-sm" onclick="openHelperForDesign()">Ask Atlas to design this</button>
+        <button class="btn btn-sm" onclick="openHelperForDesign()">Ask Cosmo to design this</button>
         <button class="icon-btn" onclick="deleteCurrentBubble()" title="Delete section">✕</button>
       </div>
     </div>
@@ -123,11 +135,11 @@
   <div class="thought" id="thought" hidden>
     <button class="icon-btn t-close" onclick="hideThought()" aria-label="Dismiss">✕</button>
     <button class="icon-btn t-close" onclick="think(true)" aria-label="New thought" title="Think again">↻</button>
-    <span class="t-label">Atlas</span>
+    <span class="t-label">Cosmo</span>
     <span id="thought-text"></span>
   </div>
   <div class="dock-row">
-  <button class="helper-bubble" id="helper-bubble" onclick="openHelper()" title="Ask Atlas" hidden>
+  <button class="helper-bubble" id="helper-bubble" onclick="openHelper()" title="Ask Cosmo" hidden>
     <span class="ring"></span>
     <svg viewBox="0 0 100 100" aria-hidden="true"><use href="#wf-logo"/></svg>
   </button>
@@ -139,7 +151,7 @@
   <div class="sheet-card">
     <div class="sheet-head">
       <div>
-        <h3>Atlas</h3>
+        <h3>Cosmo</h3>
         <div class="sub" id="helper-context">Your whole hub</div>
         <div class="helper-demo-note">Demo mode: understands a handful of commands</div>
       </div>
@@ -206,6 +218,17 @@
       <div class="field">
         <label>Theme</label>
         <div class="theme-grid" id="theme-grid"></div>
+        <button class="btn btn-sm save-theme-btn" onclick="openSavePreset()">+ Save as my theme</button>
+        <input type="file" id="bg-file" accept="image/*" hidden onchange="if(this.files[0]) loadBackground(this.files[0]); this.value='';">
+        <div class="bg-controls" id="bg-controls" hidden>
+          <div class="row" style="gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-sm" onclick="pickBackground()">Change image</button>
+            <button class="btn btn-sm btn-ghost" onclick="removeBackground()">Remove</button>
+          </div>
+          <label class="bg-dim-label">Tint over the picture <span class="mono" id="bg-dim-read"></span></label>
+          <input type="range" class="ink-size" style="width:100%" id="bg-dim" min="0" max="70" step="5" oninput="setBgDim(this.value)">
+        </div>
+        <div class="bg-hint">Tip: paste a picture with &#8984;V or drop one here to use it as your background.</div>
       </div>
       <div class="field">
         <label>Font</label>
@@ -286,7 +309,7 @@
   <div class="tw-card">
     <span class="tw-eyebrow">Tour complete</span>
     <h2 id="td-title">That is Wayfinder.</h2>
-    <p>Everything you just watched is live. Open bubbles, add your own, draw on the map or ask Atlas something. Nothing here is saved, so you cannot break it.</p>
+    <p>Everything you just watched is live. Open bubbles, add your own, draw on the map or ask Cosmo something. Nothing here is saved, so you cannot break it.</p>
     <div class="td-acts">
       <button class="btn btn-primary" id="td-explore" onclick="closeDone()">Explore on my own</button>
       <button class="btn" onclick="replayTour()">Replay tour</button>
@@ -298,7 +321,7 @@
 <div id="modal"><div class="modal-back" onclick="if(event.target===this) closeModal()"><div class="modal-card" id="modal-card"></div></div></div>
 
 <!-- order matters: app.js defines the app, demo.js uses it and calls init() -->
-<script src="app.js?v=202611070128"></script>
-<script src="demo.js?v=202611070128"></script>
+<script src="app.js?v=202611071502"></script>
+<script src="demo.js?v=202611071502"></script>
 </body>
 </html>

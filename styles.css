@@ -58,7 +58,7 @@ img{ max-width:100%; }
      space than feels comfortable at first. There is no frost, no sheen
      and no second accent. Everything below is in service of that.
      ===================================================================== */
-  :root[data-theme="clarity"]{
+  :root[data-theme="clarity"], :root[data-theme="custom"][data-bg-tone="light"]{
     /* apple.com's page background is #F5F5F7, not white; white is the raised
        tier that cards sit on. Getting this backwards is why a white-on-white
        build needs shadows to separate anything — on the real thing the ground
@@ -91,7 +91,7 @@ img{ max-width:100%; }
   }
   /* Clarity Dark — the same geometry on Apple's dark greys. True black
      ground, #1C1C1E cards, and the blue brightens so it still reads. */
-  :root[data-theme="claritydark"]{
+  :root[data-theme="claritydark"], :root[data-theme="custom"]{
     --grid-ink:#000000; --grid-fine:rgba(255,255,255,0.016); --grid-bold:rgba(255,255,255,0.032);
     --bg:#000000; --ground:#1C1C1E;
     --surface:#1C1C1E; --surface-2:#2C2C2E;
@@ -162,14 +162,15 @@ img{ max-width:100%; }
      maths at default settings: mostly pearl (#FDFDFF), tinted pale cyan
      (#D4FEFF), pale pink (#FDD5FF) and pale lavender (#D6D5FF), then every
      colour nudged 30% toward pink. Flat: the page is one colour, and the tints
-     live in the grid, borders and accents. */
+     live in the grid, borders and accents. Shown as "Cherry Blossom": a blossom
+     pink accent, and petals falling behind everything (see the petals code in app.js). */
   :root[data-theme="iridescence"]{
     --grid-ink:#F9ECFF; --grid-fine:rgba(150,190,225,0.15); --grid-bold:rgba(226,110,200,0.24);
     --bg:#F9ECFF; --ground:#FDF7FF;
     --surface:#FDF7FF; --surface-2:#F4E6FF;
     --border:#E3CAF5; --line:#DEC7F8;
     --text:#281834; --text-muted:#8E5C94;
-    --accent:#965CD8; --accent-soft:rgba(150,92,216,0.12); --accent-strong:#874DCC;
+    --accent:#C9497F; --accent-soft:rgba(201,73,127,0.12); --accent-strong:#B03A6C;
     --cta:#281834; --cta-text:#FDFDFF; --cta-hover:#3A284B;
     --success:#1F8A5B; --success-soft:rgba(31,138,91,0.10);
     --warning:#B25000; --warning-soft:rgba(178,80,0,0.10);
@@ -182,6 +183,77 @@ img{ max-width:100%; }
     --shadow:0 1px 2px rgba(60,40,120,0.05), 0 4px 14px -6px rgba(60,40,120,0.14);
     --shadow-lg:0 2px 6px rgba(60,40,120,0.07), 0 18px 44px -14px rgba(60,40,120,0.22);
     color-scheme: light;
+  }
+  /* Horizon: the Gradient ASCII effect. A very dark navy page; behind the hub a
+     planet horizon drawn in text characters glows in the effect's ramp of deep
+     blue (#1E3FD8), sky blue (#38BDF8), pale blue (#A5D8FF) and near-white
+     (#F6F8FF). The animation lives in app.js (the ascii code). */
+  :root[data-theme="ascii"]{
+    --grid-ink:#050B24; --grid-fine:rgba(165,216,255,0.025); --grid-bold:rgba(165,216,255,0.05);
+    --bg:#050B24; --ground:#0B1638;
+    --surface:#0B1638; --surface-2:#12204A;
+    --border:#1E2F66; --line:#2A3D7A;
+    --text:#F6F8FF; --text-muted:#9FB4E8;
+    --accent:#38BDF8; --accent-soft:rgba(56,189,248,0.16); --accent-strong:#A5D8FF;
+    --on-accent:#04102E;
+    --cta:#F6F8FF; --cta-text:#050B24; --cta-hover:#DCE6FF;
+    --success:#7CF0B4; --success-soft:rgba(124,240,180,0.16);
+    --warning:#FFD166; --warning-soft:rgba(255,209,102,0.16);
+    --danger:#FF8A9A; --danger-soft:rgba(255,138,154,0.16);
+    --ink-default:#F6F8FF;
+    --radius:24px;
+    --lit:rgba(255,255,255,0.4); --shade:rgba(0,0,0,0.5);
+    --stars:0; --bloom:0; --halo:0;
+    --shadow-sm:0 1px 1px rgba(0,0,0,0.5);
+    --shadow:0 1px 2px rgba(0,0,0,0.45), 0 4px 14px -6px rgba(0,0,0,0.65);
+    --shadow-lg:0 2px 6px rgba(0,0,0,0.5), 0 18px 44px -14px rgba(0,0,0,0.8);
+    color-scheme: dark;
+  }
+  /* Snow: white pixel snowflakes (from the Pixel Snow effect) falling on a deep
+     winter-night navy, with an icy blue accent. The snow lives in app.js. */
+  :root[data-theme="snow"]{
+    --grid-ink:#0B1426; --grid-fine:rgba(200,225,255,0.03); --grid-bold:rgba(200,225,255,0.06);
+    --bg:#0B1426; --ground:#132038;
+    --surface:#132038; --surface-2:#1A2A47;
+    --border:#263A5E; --line:#2F4670;
+    --text:#F2F7FF; --text-muted:#9DB1D1;
+    --accent:#9FD6FF; --accent-soft:rgba(159,214,255,0.15); --accent-strong:#D2ECFF;
+    --on-accent:#0B1426;
+    --cta:#F2F7FF; --cta-text:#0B1426; --cta-hover:#D9E6F7;
+    --success:#7CF0B4; --success-soft:rgba(124,240,180,0.16);
+    --warning:#FFD166; --warning-soft:rgba(255,209,102,0.16);
+    --danger:#FF8A9A; --danger-soft:rgba(255,138,154,0.16);
+    --ink-default:#F2F7FF;
+    --radius:24px;
+    --lit:rgba(255,255,255,0.4); --shade:rgba(0,0,0,0.5);
+    --stars:0; --bloom:0; --halo:0;
+    --shadow-sm:0 1px 1px rgba(0,0,0,0.5);
+    --shadow:0 1px 2px rgba(0,0,0,0.45), 0 4px 14px -6px rgba(0,0,0,0.65);
+    --shadow-lg:0 2px 6px rgba(0,0,0,0.5), 0 18px 44px -14px rgba(0,0,0,0.8);
+    color-scheme: dark;
+  }
+  /* Terminal: the Faulty Terminal colours, flat: phosphor green (#A7EF9E) on a
+     near-black screen, no animation. */
+  :root[data-theme="terminal"]{
+    --grid-ink:#040704; --grid-fine:rgba(167,239,158,0.025); --grid-bold:rgba(167,239,158,0.05);
+    --bg:#040704; --ground:#0B140C;
+    --surface:#0B140C; --surface-2:#122014;
+    --border:#1E3A22; --line:#28502E;
+    --text:#DDF7D8; --text-muted:#86B48B;
+    --accent:#A7EF9E; --accent-soft:rgba(167,239,158,0.14); --accent-strong:#D2FACB;
+    --on-accent:#06210A;
+    --cta:#A7EF9E; --cta-text:#06210A; --cta-hover:#C2F6BB;
+    --success:#A7EF9E; --success-soft:rgba(167,239,158,0.16);
+    --warning:#FFD166; --warning-soft:rgba(255,209,102,0.16);
+    --danger:#FF8A80; --danger-soft:rgba(255,138,128,0.16);
+    --ink-default:#DDF7D8;
+    --radius:24px;
+    --lit:rgba(255,255,255,0.35); --shade:rgba(0,0,0,0.55);
+    --stars:0; --bloom:0; --halo:0;
+    --shadow-sm:0 1px 1px rgba(0,0,0,0.6);
+    --shadow:0 1px 2px rgba(0,0,0,0.5), 0 4px 14px -6px rgba(0,0,0,0.7);
+    --shadow-lg:0 2px 6px rgba(0,0,0,0.55), 0 18px 44px -14px rgba(0,0,0,0.85);
+    color-scheme: dark;
   }
   /* Orbit — deep space, a cold sky and one warm sun */
   /* default — Grid Dark */
@@ -352,6 +424,8 @@ img{ max-width:100%; }
   }
 
   /* bubble tones — dark themes */
+  /* no colour: panels inside still use the theme's accent; the bubble itself is plain (below) */
+  .tone-none{ --tone:var(--accent); --tone-soft:var(--accent-soft); }
   .tone-teal{ --tone:#6FBAC4; --tone-soft:#172E33; }
   .tone-amber{ --tone:#DAA84A; --tone-soft:#332911; }
   .tone-violet{ --tone:#A79AD6; --tone-soft:#251F36; }
@@ -400,6 +474,28 @@ img{ max-width:100%; }
   #sky i{ position:absolute; inset:0; display:block; transition:opacity .3s ease; opacity:var(--bloom); }
   /* the starfield (Clarity Space only): tiles painted by paintStars() in app.js,
      sliding at three depths as the map moves */
+  /* shooting stars (Clarity Space only): just above the starfield, behind everything else */
+  #meteors{ position:fixed; inset:0; width:100%; height:100%; z-index:-1; pointer-events:none; display:none; }
+  :root[data-theme="claritydark"] #meteors{ display:block; }
+  /* the astronaut's story: one small scene per theme, hidden far out on the map */
+  #story{ position:fixed; inset:0; width:100%; height:100%; z-index:-1; pointer-events:none; }
+  /* the drifting astronaut (Clarity Space only): behind everything, never in the way of a click */
+  #astronaut{ position:fixed; inset:0; width:100%; height:100%; z-index:-1; pointer-events:none; display:none; }
+  :root[data-theme="claritydark"] #astronaut{ display:block; }
+  /* the ASCII horizon (Horizon theme only): same layer as the petals, behind
+     everything and never in the way of a click */
+  #ascii{ position:fixed; inset:0; width:100%; height:100%; z-index:-1; pointer-events:none; display:none; }
+  :root[data-theme="ascii"] #ascii{ display:block; }
+  /* the glowing characters run right behind the map hint, so it gets a backing */
+  :root[data-theme="ascii"] .hub-hint{ background:var(--surface); border:1px solid var(--border); color:var(--text);
+    padding:5px 11px; border-radius:99px; }
+  /* pixel snow (Snow theme only): same layer as the petals */
+  #snow{ position:fixed; inset:0; width:100%; height:100%; z-index:-1; pointer-events:none; display:none; image-rendering:pixelated; }
+  :root[data-theme="snow"] #snow{ display:block; }
+  /* falling cherry blossom petals (Cherry Blossom theme only): above the grid,
+     behind every bubble, panel and button, and never in the way of a click */
+  #petals{ position:fixed; inset:0; width:100%; height:100%; z-index:-1; pointer-events:none; display:none; }
+  :root[data-theme="iridescence"] #petals{ display:block; }
   #sky i.stars{ opacity:var(--starfield, 0); background-repeat:repeat; }
   #sky .s1{ background-position:var(--sx1, 0) var(--sy1, 0); }
   #sky .s2{ background-position:var(--sx2, 0) var(--sy2, 0); }
@@ -498,8 +594,8 @@ img{ max-width:100%; }
   .hub-canvas.erasing #ink{ cursor:cell; }
   .hub-links{ position:absolute; left:-12000px; top:-12000px; width:24000px; height:24000px; pointer-events:none; overflow:visible; }
   .hub-links line{ stroke:var(--line); stroke-width:1; opacity:0.9; vector-effect:non-scaling-stroke; }
-  /* lines into Atlas, in the middle, read a little heavier than branch lines */
-  .hub-links line.atlas{ stroke-width:2.4; }
+  /* lines into Cosmo, in the middle, read a little heavier than branch lines */
+  .hub-links line.cosmo{ stroke-width:2.4; }
 
   .hub-hint{ color:var(--text-muted); }
 
@@ -596,20 +692,31 @@ img{ max-width:100%; }
      One hairline does the separating and the tone survives only as a wash
      you can just about name. Push the tint past about 12% and it stops
      looking like Apple and starts looking like a children's app. */
+  /* Filled with the section's own colour. --tint (0-100, set per bubble from
+     its "How much colour" slider) goes from the theme's natural surface to 75%
+     colour; the cap keeps the name readable on every theme. A faint sheen
+     from the top keeps it looking round. */
   .bubble.section{
     background:
-      linear-gradient(168deg,
-        color-mix(in srgb, var(--tone) 12%, transparent) 0%,
-        color-mix(in srgb, var(--tone) 6%, transparent) 54%,
-        color-mix(in srgb, var(--tone) 2%, transparent) 88%),
-      var(--surface);
-    border:1px solid color-mix(in srgb, var(--tone) 30%, var(--border));
+      linear-gradient(168deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 50%, transparent 85%),
+      color-mix(in srgb, var(--tone) calc(var(--tint, 45) * 0.75%), var(--surface));
+    border:1.5px solid color-mix(in srgb, var(--tone) calc(65% + var(--tint, 45) * 0.35%), var(--border));   /* outline: mostly the section's colour, pure at full strength */
     box-shadow:
       inset 0 -8px 18px -12px color-mix(in srgb, var(--tone) 40%, transparent),
       var(--shadow);
   }
+  /* plain bubbles: sections with no colour. Terminal's own surface is a
+     neutral grey, so colours there come out true instead of green-tinged. */
+  .bubble.section.tone-none{
+    background:var(--surface); border:1px solid var(--border); box-shadow:var(--shadow);
+  }
+  :root[data-theme="terminal"] .bubble.section{ --surface:#0D0F0D; }
+  :root[data-theme="terminal"] .bubble.section.tone-none{ border-color:rgba(255,255,255,0.13); }
+  .bubble.section.tone-none:hover{
+    border-color:var(--text-muted); box-shadow:0 0 0 4px var(--accent-soft), var(--shadow-lg);
+  }
     .bubble.section:hover{
-    border-color:color-mix(in srgb, var(--tone) 55%, var(--border));
+    border-color:var(--tone);
     box-shadow:
       0 0 0 4px color-mix(in srgb, var(--tone) 10%, transparent),
       var(--shadow-lg);
@@ -633,9 +740,9 @@ img{ max-width:100%; }
   }
     .bubble.center .b-name, .bubble.center .b-count{ color:var(--text); text-shadow:none; }
   .bubble.center .b-meta{ color:var(--text-muted); }
-  .bubble.center .b-atlas{ display:block; width:42px; height:42px; color:var(--accent); position:relative; z-index:1; }
-  .bubble.center .b-atlas svg{ width:100%; height:100%; display:block; }
-  .bubble.center.busy .b-atlas{ animation:pulse 1.6s ease-in-out infinite; }
+  .bubble.center .b-cosmo{ display:block; width:42px; height:42px; color:var(--accent); position:relative; z-index:1; }
+  .bubble.center .b-cosmo svg{ width:100%; height:100%; display:block; }
+  .bubble.center.busy .b-cosmo{ animation:pulse 1.6s ease-in-out infinite; }
   .bubble .b-name{ color:var(--text); text-shadow:none; }
   .bubble .b-meta{ color:var(--text-muted); text-shadow:none; }
   /* a flat card has no moons-with-rings; a soft dashed ring says the same thing */
@@ -645,6 +752,10 @@ img{ max-width:100%; }
     transform:none; background:none; opacity:1;
     border:1px dashed color-mix(in srgb, var(--tone, var(--accent)) 38%, transparent);
   }
+  /* sections with no colour, and every section in Terminal, get a plain ring */
+  .tone-none .b-ring{ border-color:rgba(255,255,255,0.22); }
+  :root[data-theme="clarity"] .tone-none .b-ring, :root[data-theme="paper"] .tone-none .b-ring,
+  :root[data-theme="cream"] .tone-none .b-ring, :root[data-theme="iridescence"] .tone-none .b-ring{ border-color:rgba(0,0,0,0.2); }
 
   /* ---- and in space, all of that goes back to being a sun ---- */
   .hub-hint{ position:absolute; left:16px; bottom:14px; font-size:0.72rem; color:var(--text-muted); pointer-events:none; }
@@ -652,6 +763,67 @@ img{ max-width:100%; }
     background:var(--surface); border:1px solid var(--border);
     border-radius:980px; padding:4px;
     box-shadow:var(--shadow); }
+  /* On the hub the page itself never scrolls: the map fills the window down
+     to the bottom edge, and all moving around happens inside it. (An open
+     section still scrolls as a normal page.) */
+  html.hub-mode, html.hub-mode body{ height:100%; overflow:hidden; }
+  html.hub-mode .wrap{ height:100vh; height:100dvh; display:flex; flex-direction:column; padding-bottom:16px; box-sizing:border-box; }
+  html.hub-mode #hub-view{ flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
+  html.hub-mode .hub-canvas{ flex:1 1 auto; height:auto; min-height:0; }
+  /* dragging the map should never highlight text on it */
+  #hub-canvas, #hub-canvas *{ -webkit-user-select:none; user-select:none; }
+  /* "Your image": the visitor's own picture behind the grid, with a tint over
+     it so the bubbles and text stay readable. Dark pictures use Clarity
+     Space's colours and a dark tint; light pictures Clarity's and a light one. */
+  :root[data-theme="custom"]{ --starfield:0; }
+  #custom-bg{ position:fixed; inset:0; z-index:-3; display:none; pointer-events:none;
+    background-size:cover; background-position:center; background-repeat:no-repeat; }
+  :root[data-theme="custom"] #custom-bg{ display:block; }
+  #custom-bg::after{ content:''; position:absolute; inset:0; background:rgba(0,0,0,var(--bg-dim, 0.2)); }
+  :root[data-bg-tone="light"] #custom-bg::after{ background:rgba(255,255,255,var(--bg-dim, 0.2)); }
+  :root[data-theme="custom"] body{ background:transparent; }
+  :root[data-theme="custom"] .hub-hint{ background:var(--surface); border:1px solid var(--border); color:var(--text);
+    padding:5px 11px; border-radius:99px; }
+  .bg-controls{ display:flex; flex-direction:column; gap:8px; margin-top:10px; padding:10px; border-radius:12px; background:var(--surface-2); }
+  .bg-controls[hidden]{ display:none; }
+  .bg-dim-label{ font-size:0.74rem; color:var(--text-muted); }
+  .bg-hint{ margin-top:8px; font-size:0.72rem; color:var(--text-muted); }
+  .theme-swatch.custom{ background-size:cover; background-position:center; }
+  .theme-swatch.empty{ display:flex; align-items:center; justify-content:center; font-size:1.3rem; font-weight:300;
+    color:var(--text-muted); border-bottom:1.5px dashed var(--border); background:var(--surface-2); }
+  .sheet-card.dropping{ outline:2px dashed var(--accent); outline-offset:-8px; }
+  .save-theme-btn{ align-self:flex-start; margin-top:10px; }
+  /* your own themes sit in the theme grid like the built-in ones, with a delete button */
+  .theme-card.mine{ position:relative; }
+  .theme-del{ position:absolute; top:4px; right:4px; width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.55); color:#fff; font-size:0.7rem; line-height:1; opacity:0; transition:opacity .15s ease; }
+  .theme-card.mine:hover .theme-del, .theme-card.mine:focus-within .theme-del{ opacity:1; }
+  @media (hover: none){ .theme-del{ opacity:0.85; } }
+  /* saved looks: one small card per preset */
+  .preset-row{ display:flex; flex-wrap:wrap; gap:8px; }
+  .preset-row:empty::before{ content:'None yet. Set a look you like, then save it here.'; font-size:0.74rem; color:var(--text-muted); }
+  .preset{ position:relative; display:flex; align-items:center; gap:8px; padding:5px 26px 5px 5px; border-radius:10px; cursor:pointer;
+    border:1.5px solid var(--border); background:var(--surface); color:var(--text); font:600 0.76rem/1.2 var(--font-ui); max-width:100%; }
+  .preset:hover{ border-color:var(--accent); }
+  .preset.on{ border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft); }
+  .preset-swatch{ width:30px; height:22px; border-radius:6px; flex:0 0 auto; position:relative; background-size:cover; background-position:center;
+    border:1px solid rgba(127,127,127,0.25); }
+  .preset-swatch i{ position:absolute; right:3px; bottom:3px; width:7px; height:7px; border-radius:50%; }
+  .preset-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:150px; }
+  .preset-del{ position:absolute; right:3px; top:50%; transform:translateY(-50%); width:20px; height:20px; border:none; border-radius:50%;
+    background:transparent; color:var(--text-muted); cursor:pointer; font-size:0.8rem; line-height:1; }
+  .preset-del:hover{ background:var(--surface-2); color:var(--text); }
+  /* the mini-map: pops up when you wander away from the sections */
+  .minimap{ position:absolute; right:12px; bottom:56px; z-index:7; width:200px; padding:8px 8px 9px;
+    background:var(--surface); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow-lg);
+    display:flex; flex-direction:column; gap:7px; animation:minimap-in .25s var(--ease) both; }
+  .minimap[hidden]{ display:none; }
+  @keyframes minimap-in{ from{ opacity:0; transform:translateY(6px) scale(0.97); } to{ opacity:1; transform:none; } }
+  .minimap-head{ display:flex; justify-content:space-between; align-items:baseline; padding:0 2px;
+    font:600 0.68rem/1 var(--font-ui); letter-spacing:var(--track-caps); text-transform:uppercase; color:var(--text-muted); }
+  .minimap-tip{ text-transform:none; letter-spacing:0; font-weight:500; opacity:0.8; }
+  #minimap-canvas{ width:100%; height:122px; display:block; border-radius:8px; cursor:pointer; touch-action:none; }
+  .minimap-back{ justify-content:center; }
   .zoom-btn{ min-width:28px; height:26px; padding:0 7px; border:none; background:transparent; color:var(--text-muted);
     font:600 0.8rem/1 var(--font-ui); cursor:pointer; border-radius:7px; }
   .zoom-btn:hover{ background:var(--surface-2); color:var(--text); }
@@ -709,7 +881,11 @@ img{ max-width:100%; }
   .sec-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:14px;
     padding:60px 0 14px; flex-wrap:wrap; }   /* clears the floating undo/redo bar */
   .sec-title-wrap{ display:flex; align-items:center; gap:11px; min-width:0; }
-  .sec-dot{ width:13px; height:13px; border-radius:50%; background:var(--tone,var(--accent)); flex:0 0 auto; }
+  .sec-dot{ width:13px; height:13px; border-radius:50%; background:var(--tone,var(--accent)); flex:0 0 auto;
+    border:none; padding:0; cursor:pointer; transition:transform .15s var(--ease); }
+  .sec-dot:hover{ transform:scale(1.35); box-shadow:0 0 0 3px var(--accent-soft); }
+  /* a section with no colour: its dot is an empty dashed ring */
+  .sec-title-wrap.tone-none .sec-dot{ background:transparent; border:2px dashed var(--text-muted); }
   .sec-title{ font-size:1.5rem; border:none; background:none; color:var(--text); font-family:var(--font-display); font-weight:600;
     padding:2px 4px; border-radius:7px; min-width:120px; max-width:min(60vw, 420px); }
   .sec-title:hover{ background:var(--surface-2); }
@@ -925,6 +1101,21 @@ img{ max-width:100%; }
   .tone-picker{ display:flex; gap:8px; flex-wrap:wrap; }
   .tone-swatch{ width:28px; height:28px; border-radius:50%; border:2px solid transparent; background:var(--tone); cursor:pointer; }
   .tone-swatch.sel{ border-color:var(--text); }
+  /* "no colour": an empty dashed ring with a slash through it */
+  .tone-swatch.tone-none{ background:linear-gradient(135deg, transparent 46%, var(--text-muted) 46%, var(--text-muted) 54%, transparent 54%);
+    border:2px dashed var(--text-muted); }
+  .tone-swatch.tone-none.sel{ border-style:solid; border-color:var(--text); }
+  .tone-picker-lg{ gap:12px; padding:4px 0 2px; }
+  /* "How much colour": Natural ... Full colour */
+  .tint-row{ display:flex; align-items:center; gap:10px; margin-top:10px; font-size:0.74rem; color:var(--text-muted); }
+  .tint-row .tint-slider{ flex:1; }
+  .tint-row.off{ opacity:0.35; pointer-events:none; }
+  .tint-preview{ margin-top:10px; height:44px; border-radius:22px; display:flex; align-items:center; justify-content:center;
+    font-size:0.8rem; font-weight:600; color:var(--text);
+    background:color-mix(in srgb, var(--tone) calc(var(--tint, 45) * 0.75%), var(--surface));
+    border:1.5px solid color-mix(in srgb, var(--tone) calc(65% + var(--tint, 45) * 0.35%), var(--border)); }
+  .tint-preview.tone-none{ background:var(--surface); border-color:var(--border); }
+  .tone-picker-lg .tone-swatch{ width:38px; height:38px; }
 
   /* helper chat */
   .chat-body{ flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:11px; }
