@@ -107,10 +107,81 @@ img{ max-width:100%; }
     --radius:24px;
     --lit:rgba(255,255,255,0.5); --shade:rgba(0,0,0,0.5);
     --stars:0; --bloom:0; --halo:0;
+    --starfield:1;                  /* Clarity Space: stars behind the grid */
     --shadow-sm:0 1px 1px rgba(0,0,0,0.5);
     --shadow:0 1px 2px rgba(0,0,0,0.4), 0 4px 14px -6px rgba(0,0,0,0.6);
     --shadow-lg:0 2px 6px rgba(0,0,0,0.5), 0 18px 44px -14px rgba(0,0,0,0.75);
     color-scheme: dark;
+  }
+  /* Warp: the colours of the CRT Warp effect (phosphor purple on a near-black
+     violet), flat, with none of its scanlines or waves */
+  :root[data-theme="warp"]{
+    --grid-ink:#120F17; --grid-fine:rgba(199,85,247,0.045); --grid-bold:rgba(199,85,247,0.10);
+    --bg:#120F17; --ground:#1C1723;
+    --surface:#1C1723; --surface-2:#282031;
+    --border:#382D45; --line:#3D3049;
+    --text:#F4ECFB; --text-muted:#9D8FAF;
+    --accent:#C755F7; --accent-soft:rgba(199,85,247,0.18); --accent-strong:#DA8BFA;
+    --cta:#C755F7; --cta-text:#FFFFFF; --cta-hover:#B23FE6;
+    --success:#30D158; --success-soft:rgba(48,209,88,0.16);
+    --warning:#FF9F0A; --warning-soft:rgba(255,159,10,0.16);
+    --danger:#FF453A; --danger-soft:rgba(255,69,58,0.16);
+    --ink-default:#F4ECFB;
+    --radius:24px;
+    --lit:rgba(255,255,255,0.45); --shade:rgba(0,0,0,0.5);
+    --stars:0; --bloom:0; --halo:0;
+    --shadow-sm:0 1px 1px rgba(0,0,0,0.5);
+    --shadow:0 1px 2px rgba(0,0,0,0.45), 0 4px 14px -6px rgba(0,0,0,0.65);
+    --shadow-lg:0 2px 6px rgba(0,0,0,0.5), 0 18px 44px -14px rgba(0,0,0,0.8);
+    color-scheme: dark;
+  }
+  /* Mono: the Shape Waves palette, flat. Pure black, mid grey (#929292) for
+     the quiet parts, white (#FFFFFF) where things light up. No colour at all. */
+  :root[data-theme="mono"]{
+    --grid-ink:#000000; --grid-fine:rgba(146,146,146,0.07); --grid-bold:rgba(146,146,146,0.14);
+    --bg:#000000; --ground:#111111;
+    --surface:#111111; --surface-2:#1C1C1C;
+    --border:#2C2C2C; --line:#3A3A3A;
+    --text:#FFFFFF; --text-muted:#929292;
+    --accent:#FFFFFF; --accent-soft:rgba(255,255,255,0.12); --accent-strong:#FFFFFF;
+    --on-accent:#000000;            /* black text and icons on the white accent */
+    --cta:#FFFFFF; --cta-text:#000000; --cta-hover:#D9D9D9;
+    --success:#30D158; --success-soft:rgba(48,209,88,0.16);
+    --warning:#FF9F0A; --warning-soft:rgba(255,159,10,0.16);
+    --danger:#FF453A; --danger-soft:rgba(255,69,58,0.16);
+    --ink-default:#FFFFFF;
+    --radius:24px;
+    --lit:rgba(255,255,255,0.4); --shade:rgba(0,0,0,0.55);
+    --stars:0; --bloom:0; --halo:0;
+    --shadow-sm:0 1px 1px rgba(0,0,0,0.5);
+    --shadow:0 1px 2px rgba(0,0,0,0.4), 0 4px 14px -6px rgba(0,0,0,0.6);
+    --shadow-lg:0 2px 6px rgba(0,0,0,0.5), 0 18px 44px -14px rgba(0,0,0,0.75);
+    color-scheme: dark;
+  }
+  /* Iridescence: the colours that shader actually produces, sampled from its
+     maths at default settings: mostly pearl (#FDFDFF), tinted pale cyan
+     (#D4FEFF), pale pink (#FDD5FF) and pale lavender (#D6D5FF), then every
+     colour nudged 30% toward pink. Flat: the page is one colour, and the tints
+     live in the grid, borders and accents. */
+  :root[data-theme="iridescence"]{
+    --grid-ink:#F9ECFF; --grid-fine:rgba(150,190,225,0.15); --grid-bold:rgba(226,110,200,0.24);
+    --bg:#F9ECFF; --ground:#FDF7FF;
+    --surface:#FDF7FF; --surface-2:#F4E6FF;
+    --border:#E3CAF5; --line:#DEC7F8;
+    --text:#281834; --text-muted:#8E5C94;
+    --accent:#965CD8; --accent-soft:rgba(150,92,216,0.12); --accent-strong:#874DCC;
+    --cta:#281834; --cta-text:#FDFDFF; --cta-hover:#3A284B;
+    --success:#1F8A5B; --success-soft:rgba(31,138,91,0.10);
+    --warning:#B25000; --warning-soft:rgba(178,80,0,0.10);
+    --danger:#D1105A; --danger-soft:rgba(209,16,90,0.09);
+    --ink-default:#281834;
+    --radius:24px;
+    --lit:rgba(255,255,255,0.9); --shade:rgba(60,40,120,0.08);
+    --stars:0; --bloom:0; --halo:0;
+    --shadow-sm:0 1px 1px rgba(60,40,120,0.05);
+    --shadow:0 1px 2px rgba(60,40,120,0.05), 0 4px 14px -6px rgba(60,40,120,0.14);
+    --shadow-lg:0 2px 6px rgba(60,40,120,0.07), 0 18px 44px -14px rgba(60,40,120,0.22);
+    color-scheme: light;
   }
   /* Orbit — deep space, a cold sky and one warm sun */
   /* default — Grid Dark */
@@ -158,18 +229,22 @@ img{ max-width:100%; }
     --lit:rgba(255,255,255,0.55); --shade:rgba(0,0,0,0.55); --stars:0; --halo:0.22;
     color-scheme: light;
   }
+  /* Blueprint: the Gradient ASCII palette, flat, on deep navy paper (#0E2150)
+     instead of its royal blue (#1E3FD8),
+     near-white ink (#F6F8FF), pale blue lines (#A5D8FF), sky blue accent (#38BDF8). */
   :root[data-theme="blueprint"]{
-    --grid-ink:#0A1B2A; --grid-fine:rgba(120,200,255,0.10); --grid-bold:rgba(120,200,255,0.20);
-    --bg:#0A1B2A; --ground:#0D2234; --surface:#11293D; --surface-2:#17364F;
-    --border:#20455F; --text:#DCEBF6; --text-muted:#8AA8BE; --line:#2A5878;
-    --accent:#6BC7E8; --accent-soft:#12364C; --accent-strong:#A7E0F5;
-    --success:#6FCB9F; --success-soft:#123A2E;
-    --warning:#E0B05A; --warning-soft:#3A2D14;
-    --danger:#EE8A88; --danger-soft:#3A1F22;
-    --ink-default:#DCEBF6;
-    --shadow-sm:0 1px 2px rgba(0,0,0,0.45);
-    --shadow:0 2px 6px rgba(0,0,0,0.4), 0 14px 30px -16px rgba(0,0,0,0.7);
-    --shadow-lg:0 10px 24px -8px rgba(0,0,0,0.55), 0 28px 56px -22px rgba(0,0,0,0.8);
+    --grid-ink:#0E2150; --grid-fine:rgba(165,216,255,0.10); --grid-bold:rgba(165,216,255,0.22);
+    --bg:#0E2150; --ground:#152B60; --surface:#152B60; --surface-2:#1C3570;
+    --border:rgba(165,216,255,0.28); --text:#F6F8FF; --text-muted:#A5D8FF; --line:rgba(165,216,255,0.45);
+    --accent:#38BDF8; --accent-soft:rgba(56,189,248,0.22); --accent-strong:#A5D8FF;
+    --cta:#F6F8FF; --cta-text:#0E2150; --cta-hover:#DCE6FF;
+    --success:#7CF0B4; --success-soft:rgba(124,240,180,0.18);
+    --warning:#FFD166; --warning-soft:rgba(255,209,102,0.2);
+    --danger:#FF8A9A; --danger-soft:rgba(255,138,154,0.2);
+    --ink-default:#F6F8FF;
+    --shadow-sm:0 1px 2px rgba(2,8,28,0.45);
+    --shadow:0 2px 6px rgba(2,8,28,0.4), 0 14px 30px -16px rgba(2,8,28,0.7);
+    --shadow-lg:0 10px 24px -8px rgba(2,8,28,0.55), 0 28px 56px -22px rgba(2,8,28,0.8);
     color-scheme: dark;
   }
   :root[data-theme="slate"]{
@@ -186,18 +261,24 @@ img{ max-width:100%; }
     --shadow-lg:0 10px 24px -8px rgba(0,0,0,0.6), 0 28px 56px -22px rgba(0,0,0,0.85);
     color-scheme: dark;
   }
+  /* Forest: pine (#1B4D3E) blended with emerald (#00563B) and deepened with
+     dark green (#043927) for the paper; emerald cards and bubbles, dark green
+     inner fills and button text,
+     soft white text and a pale mint accent */
   :root[data-theme="forest"]{
-    --grid-ink:#0A1410; --grid-fine:rgba(150,255,200,0.05); --grid-bold:rgba(150,255,200,0.10);
-    --bg:#0A1410; --ground:#0E1B16; --surface:#12211B; --surface-2:#1A2C24; --border:#273E34;
-    --text:#E2ECE6; --text-muted:#8CA398; --line:#2F4A3E;
-    --accent:#77C79B; --accent-soft:#16301F; --accent-strong:#A8E0C0;
-    --success:#7FD3A0; --success-soft:#16301F;
-    --warning:#D8B05C; --warning-soft:#332B14;
-    --danger:#E28A82; --danger-soft:#331F1D;
-    --ink-default:#E2ECE6;
-    --shadow-sm:0 1px 2px rgba(0,0,0,0.5);
-    --shadow:0 2px 6px rgba(0,0,0,0.45), 0 14px 30px -16px rgba(0,0,0,0.75);
-    --shadow-lg:0 10px 24px -8px rgba(0,0,0,0.6), 0 28px 56px -22px rgba(0,0,0,0.85);
+    --grid-ink:#0B4734; --grid-fine:rgba(220,245,232,0.06); --grid-bold:rgba(220,245,232,0.13);
+    --bg:#0B4734; --ground:#00563B; --surface:#00563B; --surface-2:#043927; --border:rgba(220,245,232,0.20);
+    --text:#EEF7F2; --text-muted:#A9CDBE; --line:rgba(220,245,232,0.30);
+    --accent:#9EE6C2; --accent-soft:rgba(158,230,194,0.18); --accent-strong:#C6F2DC;
+    --on-accent:#043927;            /* dark green text on the pale mint accent */
+    --cta:#EEF7F2; --cta-text:#043927; --cta-hover:#D5EAE0;
+    --success:#9EF0B0; --success-soft:rgba(158,240,176,0.18);
+    --warning:#FFD36B; --warning-soft:rgba(255,211,107,0.2);
+    --danger:#FFA597; --danger-soft:rgba(255,165,151,0.2);
+    --ink-default:#EEF7F2;
+    --shadow-sm:0 1px 2px rgba(4,57,39,0.5);
+    --shadow:0 2px 6px rgba(2,30,20,0.4), 0 14px 30px -16px rgba(2,30,20,0.65);
+    --shadow-lg:0 10px 24px -8px rgba(2,30,20,0.55), 0 28px 56px -22px rgba(2,30,20,0.75);
     color-scheme: dark;
   }
 
@@ -278,6 +359,9 @@ img{ max-width:100%; }
   .tone-rose{ --tone:#DE94A2; --tone-soft:#301E23; }
   .tone-blue{ --tone:#83AEDD; --tone-soft:#1B2838; }
   /* …and their darker cousins on the light ones */
+  /* Every theme sits on one flat colour: no colour washes and no starfield
+     behind the grid. This comes after the theme blocks so it wins over all of them. */
+  :root, :root[data-theme]{ --bloom:0 !important; --stars:0 !important; }
   :root[data-theme="paper"] .tone-teal, :root[data-theme="cream"] .tone-teal{ --tone:#2D5F68; --tone-soft:#DCEAEC; }
   :root[data-theme="paper"] .tone-amber, :root[data-theme="cream"] .tone-amber{ --tone:#8A6109; --tone-soft:#F5EAD2; }
   :root[data-theme="paper"] .tone-violet, :root[data-theme="cream"] .tone-violet{ --tone:#5B4B8A; --tone-soft:#E6E2F2; }
@@ -314,6 +398,14 @@ img{ max-width:100%; }
     position:fixed; inset:-80px; z-index:-2; pointer-events:none; overflow:hidden;
   }
   #sky i{ position:absolute; inset:0; display:block; transition:opacity .3s ease; opacity:var(--bloom); }
+  /* the starfield (Clarity Space only): tiles painted by paintStars() in app.js,
+     sliding at three depths as the map moves */
+  #sky i.stars{ opacity:var(--starfield, 0); background-repeat:repeat; }
+  #sky .s1{ background-position:var(--sx1, 0) var(--sy1, 0); }
+  #sky .s2{ background-position:var(--sx2, 0) var(--sy2, 0); }
+  #sky .s3{ background-position:var(--sx3, 0) var(--sy3, 0); animation:twinkle 6s ease-in-out infinite; }
+  @keyframes twinkle{ 0%, 100%{ filter:brightness(1); } 50%{ filter:brightness(0.55); } }
+  @media (prefers-reduced-motion: reduce){ #sky .s3{ animation:none; } }
 
   /* Colour washes for the themes that want depth behind their surfaces.
      Clarity sets --bloom:0 and switches them off entirely: its page is
@@ -431,7 +523,7 @@ img{ max-width:100%; }
   .ink-btn:active{ transform:scale(0.96); }
   .ink-btn.on{
     background:var(--accent);
-    color:#fff;
+    color:var(--on-accent, #fff);
     box-shadow:none;
   }
   .ink-btn:disabled{ opacity:0.35; cursor:default; }
@@ -611,7 +703,7 @@ img{ max-width:100%; }
   .helper-bubble .ring{ position:absolute; inset:-5px; border-radius:50%; border:1.5px solid var(--accent); opacity:0.35; }
   .helper-bubble.busy .ring{ animation:pulse 1.6s ease-in-out infinite; }
   @keyframes pulse{ 0%,100%{ transform:scale(1); opacity:0.35; } 50%{ transform:scale(1.12); opacity:0.08; } }
-  .helper-bubble svg{ width:30px; height:30px; color:#fff; }
+  .helper-bubble svg{ width:30px; height:30px; color:var(--on-accent, #fff); }
 
   /* ---------------- SECTION VIEW ---------------- */
   .sec-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:14px;
@@ -837,7 +929,7 @@ img{ max-width:100%; }
   /* helper chat */
   .chat-body{ flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:11px; }
   .msg{ max-width:88%; padding:9px 12px; border-radius:13px; font-size:0.86rem; line-height:1.5; white-space:pre-wrap; overflow-wrap:anywhere; }
-  .msg.user{ align-self:flex-end; background:var(--accent); color:#fff; border-bottom-right-radius:4px; }
+  .msg.user{ align-self:flex-end; background:var(--accent); color:var(--on-accent, #fff); border-bottom-right-radius:4px; }
   .msg.assistant{ align-self:flex-start; background:var(--surface-2); border-bottom-left-radius:4px; }
   .msg.system{ align-self:center; background:none; color:var(--text-muted); font-size:0.77rem; font-style:italic; }
   .msg-atts{ display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
@@ -922,7 +1014,7 @@ img{ max-width:100%; }
     width:80px; height:80px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center;
     box-shadow:0 0 0 8px var(--accent-soft), var(--shadow-lg);
   }
-  .tw-mark svg{ width:56px; height:56px; color:#fff; }
+  .tw-mark svg{ width:56px; height:56px; color:var(--on-accent, #fff); }
   .tw-title{
     font-family:var(--font-display); font-weight:700; font-size:clamp(2.5rem, 7.5vw, 4.6rem); line-height:1.02;
     letter-spacing:-0.035em; margin:0; text-wrap:balance;

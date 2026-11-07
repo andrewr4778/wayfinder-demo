@@ -773,13 +773,16 @@ function nudgeClear(x, y, selfId){
    on the very first frame instead of flashing the default. */
 const THEMES = [
   { id:'clarity',     name:'Clarity',      ink:'#FFFFFF', line:'rgba(0,0,0,0.09)',       dot:'#0071E3' },
-  { id:'claritydark', name:'Clarity Dark', ink:'#000000', line:'rgba(255,255,255,0.10)', dot:'#0A84FF' },
+  { id:'claritydark', name:'Clarity Space', ink:'#000000', line:'rgba(255,255,255,0.10)', dot:'#0A84FF' },
   { id:'dark',      name:'Grid Dark',  ink:'#0A0B0C', line:'rgba(255,255,255,0.10)', dot:'#6FBAC4' },
   { id:'paper',     name:'Paper',      ink:'#FBFBFA', line:'rgba(20,24,28,0.13)',    dot:'#2D5F68' },
   { id:'cream',     name:'Cream',      ink:'#F7F1E4', line:'rgba(84,64,38,0.16)',    dot:'#8A5A2B' },
-  { id:'blueprint', name:'Blueprint',  ink:'#0A1B2A', line:'rgba(120,200,255,0.22)', dot:'#6BC7E8' },
+  { id:'blueprint', name:'Blueprint',  ink:'#0E2150', line:'rgba(165,216,255,0.32)', dot:'#38BDF8' },
   { id:'slate',     name:'Slate',      ink:'#151719', line:'rgba(255,255,255,0.09)', dot:'#C08B5C' },
-  { id:'forest',    name:'Forest',     ink:'#0A1410', line:'rgba(150,255,200,0.11)', dot:'#77C79B' },
+  { id:'forest',    name:'Forest',     ink:'#0B4734', line:'rgba(220,245,232,0.22)', dot:'#9EE6C2' },
+  { id:'warp',      name:'Warp',       ink:'#120F17', line:'rgba(199,85,247,0.22)',  dot:'#C755F7' },
+  { id:'mono',      name:'Mono',       ink:'#000000', line:'rgba(146,146,146,0.30)', dot:'#FFFFFF' },
+  { id:'iridescence', name:'Iridescence', ink:'#F9ECFF', line:'rgba(226,110,200,0.32)', dot:'#965CD8' },
 ];
 /* Word's familiar faces. Each one asks for the real font first — if Andrew's
    machine has it, that is what he gets — then falls back to a metric-matched
@@ -816,6 +819,46 @@ const DEFAULT_THEME = 'clarity';
    being silently dropped to the default — which is what losing a theme id
    from THEMES would otherwise do, and it would land a dark-theme user in a
    white room. applyLook writes the new id back, so this fires once. */
+/* The starfield behind Clarity Space: three tiles of stars drawn once, then
+   repeated across the sky. Far stars are small and many, near ones few and
+   bright; each layer drifts with the map at its own rate (see applyCamera). */
+function paintStars(){
+  const layers = [
+    { el:'.stars.s1', size:420, count:150, r:[0.35, 0.8],  a:[0.25, 0.6] },
+    { el:'.stars.s2', size:560, count:55,  r:[0.6, 1.2],   a:[0.45, 0.85] },
+    { el:'.stars.s3', size:760, count:16,  r:[1.0, 1.7],   a:[0.75, 1], glow:true },
+  ];
+  const tints = ['255,255,255', '255,255,255', '255,255,255', '214,228,255', '255,236,214'];
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let seed = 7;
+  const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;   // same sky every visit
+  layers.forEach(L => {
+    const el = document.querySelector('#sky ' + L.el);
+    if(!el) return;
+    const c = document.createElement('canvas');
+    c.width = c.height = L.size * dpr;
+    const x = c.getContext('2d');
+    x.scale(dpr, dpr);
+    for(let i = 0; i < L.count; i++){
+      const px = rand() * L.size, py = rand() * L.size;
+      const r = L.r[0] + rand() * (L.r[1] - L.r[0]);
+      const a = L.a[0] + rand() * (L.a[1] - L.a[0]);
+      const tint = tints[Math.floor(rand() * tints.length)];
+      if(L.glow){
+        const g = x.createRadialGradient(px, py, 0, px, py, r * 5);
+        g.addColorStop(0, 'rgba(' + tint + ',' + (a * 0.35) + ')');
+        g.addColorStop(1, 'rgba(' + tint + ',0)');
+        x.fillStyle = g; x.beginPath(); x.arc(px, py, r * 5, 0, Math.PI * 2); x.fill();
+      }
+      x.fillStyle = 'rgba(' + tint + ',' + a + ')';
+      x.beginPath(); x.arc(px, py, r, 0, Math.PI * 2); x.fill();
+    }
+    el.style.backgroundImage = 'url(' + c.toDataURL() + ')';
+    el.style.backgroundSize = L.size + 'px ' + L.size + 'px';
+  });
+}
+paintStars();
+
 const RETIRED_THEMES = { glass:'clarity', glassdark:'claritydark', orbit:'clarity', prism:'clarity' };
 
 let look = { theme:DEFAULT_THEME, font:'publicsans', scale:100, textColor:'' };
