@@ -99,8 +99,12 @@ function bubbleById(id){ return state.bubbles.find(b => b.id === id) || null; }
 function sortedBubbles(){ return state.bubbles.slice().sort((a,b) => (a.createdAt||0) - (b.createdAt||0)); }
 function openTasks(){ return state.tasks.filter(t => !t.done); }
 function tasksFor(id){ return state.tasks.filter(t => t.bubbleId === id && !t.done); }
-function bubbleIsHot(id){
-  return tasksFor(id).some(t => t.due && daysUntil(t.due) <= 0);
+/* Due dates are flagged in one place only: the warning sign in the top bar
+   (see renderImportant). Overdue, today and the next two days count. */
+const COMING_UP_DAYS = 2;
+function comingUp(){
+  return openTasks().filter(t => t.due && daysUntil(t.due) <= COMING_UP_DAYS)
+    .sort((a, b) => daysUntil(a.due) - daysUntil(b.due));
 }
 
 /* ============ HUB ============ */
@@ -349,7 +353,7 @@ function renderHub(){
        ring blinks off, or a half-resized bubble snaps back. */
     const keep = ['dragging','no-anim','drop-target','resizing','shaken']
       .filter(k => el.classList.contains(k)).join(' ');
-    const cls = ('bubble section tone-' + (b.tone || 'teal') + (bubbleIsHot(b.id) ? ' hot' : '')
+    const cls = ('bubble section tone-' + (b.tone || 'teal') + ''
       + (keep ? ' ' + keep : ''));
     if(el.className !== cls) el.className = cls;
     const n = (b.widgets || []).length, t = tasksFor(b.id).length;
@@ -420,19 +424,19 @@ function drawLinks(spots){
       to = { x:0, y:0 }; tr = R_CEN;
     }
     if(!to) return;
-    lines += linkLine(from, radiusOf(b), to, tr, bubbleIsHot(b.id));
+    lines += linkLine(from, radiusOf(b), to, tr, !p);
   });
   const svg = document.getElementById('hub-links');
   if(svg) svg.innerHTML = lines;
 }
 /* a segment between two circles, stopping at each rim rather than at the centre */
-function linkLine(from, fr, to, tr, hot){
+function linkLine(from, fr, to, tr, toAtlas){
   const dx = from.x - to.x, dy = from.y - to.y;
   const len = Math.hypot(dx, dy) || 1;
   const sx = to.x + dx/len * tr,   sy = to.y + dy/len * tr;
   const ex = from.x - dx/len * fr, ey = from.y - dy/len * fr;
   return '<line x1="' + sx + '" y1="' + sy + '" x2="' + ex + '" y2="' + ey +
-         '" class="' + (hot ? 'hot' : '') + '"></line>';
+         '" class="' + (toAtlas ? 'atlas' : '') + '"></line>';
 }
 
 /* Where every bubble sits. Anything already placed keeps its spot; the rest get
@@ -1808,13 +1812,19 @@ function openImportant(){ openSheet('imp-sheet'); renderImportant(); }
 function renderImportant(){
   const body = document.getElementById('imp-body');
   const list = state.important.slice().sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
-  body.innerHTML = list.length ? list.map(i => `
+  const soon = comingUp();
+  const pinned = list.length ? list.map(i => `
     <div class="task-row">
       <div class="task-main"><div class="task-text">${esc(i.text)}</div></div>
       <button class="icon-btn" onclick="deleteImportant('${i.id}')">✕</button>
     </div>`).join('') : '<div class="empty">Nothing pinned yet. Put the things you always forget here.</div>';
+  body.innerHTML = (soon.length ? '<div class="group-label">Coming up</div>' + soon.map(taskRow).join('') +
+    '<div class="group-label">Pinned</div>' : '') + pinned;
   const badge = document.getElementById('imp-count');
   badge.textContent = list.length; badge.hidden = list.length === 0;
+  const btn = document.getElementById('imp-btn');
+  btn.classList.toggle('alerting', soon.length > 0);
+  btn.title = soon.length ? 'Important info: ' + soon.length + ' coming up' : 'Important info';
 }
 function submitImportant(){
   const el = document.getElementById('new-imp');
@@ -3466,9 +3476,9 @@ function renderTodoBadge(){
   if(!dot) return;
   const open = openTasks();
   const due = open.filter(t => t.due && daysUntil(t.due) <= 0).length;
-  dot.textContent = due || open.length;
+  dot.textContent = open.length;
   dot.hidden = !open.length;
-  dot.style.background = due ? 'var(--warning)' : 'var(--text-muted)';
+  dot.style.background = 'var(--text-muted)';
   document.getElementById('todo-btn').title = open.length
     ? 'To-dos & reminders: ' + open.length + ' open' + (due ? ', ' + due + ' due now' : '') : 'To-dos & reminders';
 }

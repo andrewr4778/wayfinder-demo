@@ -366,6 +366,16 @@ img{ max-width:100%; }
     box-shadow:none; }
   .alert-btn:hover{ border-color:var(--warning); }
   .alert-btn[hidden]{ display:none; }
+  /* something is due soon: the warning sign turns red and breathes, slowly */
+  .alert-btn.alerting{ color:var(--danger); border-color:color-mix(in srgb, var(--danger) 45%, var(--border));
+    animation:alert-glow 3.2s ease-in-out infinite; }
+  @keyframes alert-glow{
+    0%, 100%{ box-shadow:0 0 0 0 transparent; }
+    50%{ box-shadow:0 0 0 5px var(--danger-soft), 0 0 16px 2px color-mix(in srgb, var(--danger) 35%, transparent); }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .alert-btn.alerting{ animation:none; box-shadow:0 0 0 4px var(--danger-soft); }
+  }
   .alert-btn .dot{ position:absolute; top:-4px; right:-4px; min-width:17px; height:17px; padding:0 4px; border-radius:99px; background:var(--danger);
     color:#fff; font:700 0.62rem/17px var(--font-ui); font-variant-numeric:tabular-nums; text-align:center; }
 
@@ -396,7 +406,8 @@ img{ max-width:100%; }
   .hub-canvas.erasing #ink{ cursor:cell; }
   .hub-links{ position:absolute; left:-12000px; top:-12000px; width:24000px; height:24000px; pointer-events:none; overflow:visible; }
   .hub-links line{ stroke:var(--line); stroke-width:1; opacity:0.9; vector-effect:non-scaling-stroke; }
-  .hub-links line.hot{ stroke:var(--warning); stroke-width:1.6; opacity:0.9; stroke-dasharray:4 6; vector-effect:non-scaling-stroke; }
+  /* lines into Atlas, in the middle, read a little heavier than branch lines */
+  .hub-links line.atlas{ stroke-width:2.4; }
 
   .hub-hint{ color:var(--text-muted); }
 
@@ -511,8 +522,6 @@ img{ max-width:100%; }
       0 0 0 4px color-mix(in srgb, var(--tone) 10%, transparent),
       var(--shadow-lg);
   }
-  .bubble.section.hot{ border-color:var(--warning);
-    box-shadow:0 0 0 4px var(--warning-soft), var(--shadow); }
 
   /* A sphere is three things stacked: a hot limb where the star hits it, a body
      that falls off into the terminator, and a thin lit rim. The banding is what
