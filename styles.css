@@ -271,21 +271,6 @@ img{ max-width:100%; }
     --shadow-lg:0 10px 24px -8px rgba(0,0,0,0.6), 0 28px 56px -22px rgba(0,0,0,0.85);
     color-scheme: dark;
   }
-  :root[data-theme="paper"]{
-    --grid-ink:#FBFBFA; --grid-fine:rgba(20,24,28,0.055); --grid-bold:rgba(20,24,28,0.11);
-    --bg:#FBFBFA; --ground:#F2F3F2; --surface:#FFFFFF; --surface-2:#F0F2F2; --border:#DCE0E0;
-    --text:#14181C; --text-muted:#5F6A6E; --line:#C7CFD1;
-    --accent:#2D5F68; --accent-soft:#DCEAEC; --accent-strong:#1C444B;
-    --success:#3B8153; --success-soft:#E1F0E5;
-    --warning:#9A6A0C; --warning-soft:#F5EAD2;
-    --danger:#B3261E; --danger-soft:#F7E1DF;
-    --ink-default:#14181C;
-    --shadow-sm:0 1px 2px rgba(20,28,32,0.06);
-    --shadow:0 2px 5px rgba(20,28,32,0.06), 0 12px 28px -14px rgba(20,28,32,0.22);
-    --shadow-lg:0 8px 20px -6px rgba(20,28,32,0.18), 0 24px 50px -20px rgba(20,28,32,0.3);
-    --lit:rgba(255,255,255,0.55); --shade:rgba(0,0,0,0.55); --stars:0; --halo:0.22;
-    color-scheme: light;
-  }
   :root[data-theme="cream"]{
     --grid-ink:#F7F1E4; --grid-fine:rgba(84,64,38,0.07); --grid-bold:rgba(84,64,38,0.14);
     --bg:#F7F1E4; --ground:#F1E9D8; --surface:#FFFDF7; --surface-2:#F0E8D8; --border:#DFD3BC;
@@ -426,22 +411,22 @@ img{ max-width:100%; }
   /* bubble tones — dark themes */
   /* no colour: panels inside still use the theme's accent; the bubble itself is plain (below) */
   .tone-none{ --tone:var(--accent); --tone-soft:var(--accent-soft); }
-  .tone-teal{ --tone:#6FBAC4; --tone-soft:#172E33; }
-  .tone-amber{ --tone:#DAA84A; --tone-soft:#332911; }
-  .tone-violet{ --tone:#A79AD6; --tone-soft:#251F36; }
-  .tone-green{ --tone:#7BC894; --tone-soft:#182E22; }
-  .tone-rose{ --tone:#DE94A2; --tone-soft:#301E23; }
-  .tone-blue{ --tone:#83AEDD; --tone-soft:#1B2838; }
+  .tone-teal{ --tone:#45BFCF; --tone-soft:#0E2F35; }
+  .tone-amber{ --tone:#EDAB36; --tone-soft:#36260A; }
+  .tone-violet{ --tone:#A28AEB; --tone-soft:#231B3D; }
+  .tone-green{ --tone:#55CE88; --tone-soft:#0F3020; }
+  .tone-rose{ --tone:#EE7898; --tone-soft:#3A1520; }
+  .tone-blue{ --tone:#5F9DEE; --tone-soft:#0F2442; }
   /* …and their darker cousins on the light ones */
   /* Every theme sits on one flat colour: no colour washes and no starfield
      behind the grid. This comes after the theme blocks so it wins over all of them. */
   :root, :root[data-theme]{ --bloom:0 !important; --stars:0 !important; }
-  :root[data-theme="paper"] .tone-teal, :root[data-theme="cream"] .tone-teal{ --tone:#2D5F68; --tone-soft:#DCEAEC; }
-  :root[data-theme="paper"] .tone-amber, :root[data-theme="cream"] .tone-amber{ --tone:#8A6109; --tone-soft:#F5EAD2; }
-  :root[data-theme="paper"] .tone-violet, :root[data-theme="cream"] .tone-violet{ --tone:#5B4B8A; --tone-soft:#E6E2F2; }
-  :root[data-theme="paper"] .tone-green, :root[data-theme="cream"] .tone-green{ --tone:#3B7A52; --tone-soft:#DFEFE4; }
-  :root[data-theme="paper"] .tone-rose, :root[data-theme="cream"] .tone-rose{ --tone:#9C4A5A; --tone-soft:#F5E2E6; }
-  :root[data-theme="paper"] .tone-blue, :root[data-theme="cream"] .tone-blue{ --tone:#2F5C8F; --tone-soft:#DEE8F4; }
+  :root[data-theme="cream"] .tone-teal{ --tone:#1E7481; --tone-soft:#D6EEF1; }
+  :root[data-theme="cream"] .tone-amber{ --tone:#A66E05; --tone-soft:#F8E8C8; }
+  :root[data-theme="cream"] .tone-violet{ --tone:#634AB1; --tone-soft:#E7E0FA; }
+  :root[data-theme="cream"] .tone-green{ --tone:#2D8A54; --tone-soft:#D9F1E3; }
+  :root[data-theme="cream"] .tone-rose{ --tone:#B93F62; --tone-soft:#F9DDE6; }
+  :root[data-theme="cream"] .tone-blue{ --tone:#2961B2; --tone-soft:#DCE7FA; }
 
   *{ box-sizing:border-box; }
   @media (prefers-reduced-motion: reduce){ *{ animation-duration:0.001ms !important; transition-duration:0.001ms !important; } }
@@ -593,9 +578,22 @@ img{ max-width:100%; }
   .hub-canvas.inking .bubble{ pointer-events:none; opacity:0.55; }
   .hub-canvas.erasing #ink{ cursor:cell; }
   .hub-links{ position:absolute; left:-12000px; top:-12000px; width:24000px; height:24000px; pointer-events:none; overflow:visible; }
-  .hub-links line{ stroke:var(--line); stroke-width:1; opacity:0.9; vector-effect:non-scaling-stroke; }
+  /* The lines between sections get their own colour, mixed from the theme's
+     text colour, so they always stand out from the background (the grid colour
+     they used before vanished on several themes). Busy backgrounds get more. */
+  :root{ --link:color-mix(in srgb, var(--text) 42%, transparent); }
+  :root[data-theme="snow"], :root[data-theme="iridescence"]{ --link:color-mix(in srgb, var(--text) 62%, transparent); }
+  :root[data-theme="ascii"]{ --link:#FFFFFF; }          /* Horizon: solid white */
+  :root[data-theme="forest"]{ --link:#8B5A2B; }         /* Forest: tree-trunk brown */
+  :root[data-theme="forest"] .hub-links line{ stroke-width:2.2; }          /* a touch thicker, like branches, so the darker brown still reads */
+  :root[data-theme="forest"] .hub-links line.cosmo{ stroke-width:3.2; }
+  :root[data-theme="custom"]{ --link:color-mix(in srgb, var(--text) 80%, transparent); }
+  .hub-links line{ stroke:var(--link); stroke-width:1.6; stroke-linecap:round; vector-effect:non-scaling-stroke; }
   /* lines into Cosmo, in the middle, read a little heavier than branch lines */
-  .hub-links line.cosmo{ stroke-width:2.4; }
+  .hub-links line.cosmo{ stroke-width:2.6; }
+  /* on a picture, a soft dark (or light) edge keeps the line readable over any part of it */
+  :root[data-theme="custom"] .hub-links{ filter:drop-shadow(0 0 1.5px rgba(0,0,0,0.6)); }
+  :root[data-theme="custom"][data-bg-tone="light"] .hub-links{ filter:drop-shadow(0 0 1.5px rgba(255,255,255,0.7)); }
 
   .hub-hint{ color:var(--text-muted); }
 
@@ -696,13 +694,26 @@ img{ max-width:100%; }
      its "How much colour" slider) goes from the theme's natural surface to 75%
      colour; the cap keeps the name readable on every theme. A faint sheen
      from the top keeps it looking round. */
+  /* Lit like a glowing gem rather than a flat disc: a soft highlight up at the
+     top left, the colour deepening toward the far edge, light welling up from
+     the bottom, a bright rim, and a halo of its own colour around it. */
   .bubble.section{
+    --fill:color-mix(in srgb, var(--tone) calc(var(--tint, 50) * 0.8%), var(--surface));
+    /* a touch of glass: the fill lets a little of the background through,
+       frosted, with a sharper highlight, a light streak across the top and a
+       bright inner rim catching the edge */
     background:
-      linear-gradient(168deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 50%, transparent 85%),
-      color-mix(in srgb, var(--tone) calc(var(--tint, 45) * 0.75%), var(--surface));
-    border:1.5px solid color-mix(in srgb, var(--tone) calc(65% + var(--tint, 45) * 0.35%), var(--border));   /* outline: mostly the section's colour, pure at full strength */
+      radial-gradient(circle at 32% 24%, rgba(255,255,255,0.24) 0, rgba(255,255,255,0.07) 26%, rgba(255,255,255,0) 46%),
+      linear-gradient(155deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 34%, transparent 50%),
+      radial-gradient(circle at 50% 118%, color-mix(in srgb, var(--tone) calc(var(--tint, 50) * 0.45%), transparent) 0, transparent 58%),
+      radial-gradient(circle at 36% 30%, color-mix(in srgb, var(--fill) 85%, transparent) 0, color-mix(in srgb, var(--fill) 85%, transparent) 38%, color-mix(in srgb, color-mix(in srgb, var(--fill), #000 14%) 88%, transparent) 100%);
+    -webkit-backdrop-filter:blur(6px) saturate(1.2); backdrop-filter:blur(6px) saturate(1.2);
+    border:1.5px solid color-mix(in srgb, color-mix(in srgb, var(--tone), #fff 14%) calc(65% + var(--tint, 50) * 0.35%), var(--border));
     box-shadow:
-      inset 0 -8px 18px -12px color-mix(in srgb, var(--tone) 40%, transparent),
+      inset 0 1px 0 rgba(255,255,255,0.26),
+      inset 0 0 0 1px rgba(255,255,255,0.05),
+      inset 0 -10px 22px -12px color-mix(in srgb, var(--tone) 60%, transparent),
+      0 0 22px -8px color-mix(in srgb, var(--tone) calc(var(--tint, 50) * 0.45%), transparent),
       var(--shadow);
   }
   /* plain bubbles: sections with no colour. Terminal's own surface is a
@@ -710,15 +721,37 @@ img{ max-width:100%; }
   .bubble.section.tone-none{
     background:var(--surface); border:1px solid var(--border); box-shadow:var(--shadow);
   }
+  /* Forest: every section is a leaf. Two rounded sides meet in pointed tips
+     (top right and bottom left), with a centre vein running tip to tip and
+     side veins branching off it toward the tip. The text stays upright; Cosmo
+     in the middle stays round. */
+  :root[data-theme="forest"] .bubble.section{ border-radius:92% 6%; }
+  :root[data-theme="forest"] .bubble.section::before{
+    content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:0;
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='rgba(235,250,240,0.32)' stroke-linecap='round'%3E%3Cpath d='M9 91 Q48 54 91 9' stroke-width='1.6'/%3E%3Cg stroke-width='0.9'%3E%3Cpath d='M26 74 Q22 58 26 44'/%3E%3Cpath d='M42 58 Q38 40 44 26'/%3E%3Cpath d='M58 42 Q56 26 62 14'/%3E%3Cpath d='M26 74 Q42 78 56 74'/%3E%3Cpath d='M42 58 Q60 62 74 56'/%3E%3Cpath d='M58 42 Q74 44 86 38'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  }
+  :root[data-theme="forest"] .bubble.section.drop-target::after{ border-radius:92% 6%; }
+  :root[data-theme="forest"] .bubble.section .b-grip{ left:73%; top:73%; }   /* back onto the leaf's rounded edge */
+  /* Snow: a soft cap of fresh snow resting on top of every section, hugging the
+     curve of the bubble, with a lumpy edge and a few drips hanging down. It
+     moves and tilts with the bubble; Cosmo in the middle stays clear. */
+  :root[data-theme="snow"] .bubble.section::before{
+    content:''; position:absolute; left:-2%; right:-2%; top:-4%; height:104%; pointer-events:none; z-index:2;
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 -4 100 104' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='s' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23FFFFFF'/%3E%3Cstop offset='0.7' stop-color='%23F2F8FF'/%3E%3Cstop offset='1' stop-color='%23CFE2F7'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23s)' d='M8 24 A47 47 0 0 1 92 24 Q87 31 81 27 Q77 35 73 28 Q65 24 59 29 Q55 36 51 29 Q43 25 37 30 Q31 33 27 28 Q19 25 15 30 Q11 31 8 24 Z'/%3E%3Cpath fill='none' stroke='%23FFFFFF' stroke-width='1.2' stroke-linecap='round' opacity='0.9' d='M22 9 Q36 0 50 -1'/%3E%3Cg fill='%23BFD9F5'%3E%3Ccircle cx='30' cy='14' r='0.9'/%3E%3Ccircle cx='63' cy='9' r='0.8'/%3E%3Ccircle cx='78' cy='18' r='0.9'/%3E%3Ccircle cx='45' cy='20' r='0.7'/%3E%3C/g%3E%3C/svg%3E") center / 100% 100% no-repeat;
+    filter:drop-shadow(0 1.5px 1.5px rgba(10,24,48,0.35));
+  }
   :root[data-theme="terminal"] .bubble.section{ --surface:#0D0F0D; }
   :root[data-theme="terminal"] .bubble.section.tone-none{ border-color:rgba(255,255,255,0.13); }
   .bubble.section.tone-none:hover{
     border-color:var(--text-muted); box-shadow:0 0 0 4px var(--accent-soft), var(--shadow-lg);
   }
     .bubble.section:hover{
-    border-color:var(--tone);
+    border-color:color-mix(in srgb, var(--tone), #fff 25%);
     box-shadow:
-      0 0 0 4px color-mix(in srgb, var(--tone) 10%, transparent),
+      inset 0 1px 0 rgba(255,255,255,0.22),
+      inset 0 -10px 22px -12px color-mix(in srgb, var(--tone) 70%, transparent),
+      0 0 0 4px color-mix(in srgb, var(--tone) 16%, transparent),
+      0 0 30px -6px color-mix(in srgb, var(--tone) 45%, transparent),
       var(--shadow-lg);
   }
 
@@ -745,6 +778,8 @@ img{ max-width:100%; }
   .bubble.center.busy .b-cosmo{ animation:pulse 1.6s ease-in-out infinite; }
   .bubble .b-name{ color:var(--text); text-shadow:none; }
   .bubble .b-meta{ color:var(--text-muted); text-shadow:none; }
+  /* on the brighter section colours the grey count gets lost: use the text colour, a little softened */
+  .bubble.section:not(.tone-none) .b-meta{ color:color-mix(in srgb, var(--text) 78%, transparent); }
   /* a flat card has no moons-with-rings; a soft dashed ring says the same thing */
   .b-ring{
     position:absolute; left:50%; top:50%; width:124%; height:124%;
@@ -754,7 +789,7 @@ img{ max-width:100%; }
   }
   /* sections with no colour, and every section in Terminal, get a plain ring */
   .tone-none .b-ring{ border-color:rgba(255,255,255,0.22); }
-  :root[data-theme="clarity"] .tone-none .b-ring, :root[data-theme="paper"] .tone-none .b-ring,
+  :root[data-theme="clarity"] .tone-none .b-ring,
   :root[data-theme="cream"] .tone-none .b-ring, :root[data-theme="iridescence"] .tone-none .b-ring{ border-color:rgba(0,0,0,0.2); }
 
   /* ---- and in space, all of that goes back to being a sun ---- */
@@ -1112,8 +1147,9 @@ img{ max-width:100%; }
   .tint-row.off{ opacity:0.35; pointer-events:none; }
   .tint-preview{ margin-top:10px; height:44px; border-radius:22px; display:flex; align-items:center; justify-content:center;
     font-size:0.8rem; font-weight:600; color:var(--text);
-    background:color-mix(in srgb, var(--tone) calc(var(--tint, 45) * 0.75%), var(--surface));
-    border:1.5px solid color-mix(in srgb, var(--tone) calc(65% + var(--tint, 45) * 0.35%), var(--border)); }
+    --fill:color-mix(in srgb, var(--tone) calc(var(--tint, 50) * 0.8%), var(--surface));
+    background:radial-gradient(circle at 32% 24%, rgba(255,255,255,0.30) 0, rgba(255,255,255,0) 46%), radial-gradient(circle at 36% 30%, var(--fill) 38%, color-mix(in srgb, var(--fill), #000 22%) 100%);
+    border:1.5px solid color-mix(in srgb, var(--tone) calc(65% + var(--tint, 50) * 0.35%), var(--border)); }
   .tint-preview.tone-none{ background:var(--surface); border-color:var(--border); }
   .tone-picker-lg .tone-swatch{ width:38px; height:38px; }
 

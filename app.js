@@ -525,6 +525,9 @@ function layoutHub(){
    the app has to know the tree exists. */
 function drawLinks(spots){
   let lines = '';
+  // Forest's sections are leaves, narrower than the circle they sit in, so the
+  // lines run on into the leaf (hidden under it) instead of stopping in mid-air
+  const leafIn = document.documentElement.getAttribute('data-theme') === 'forest' ? 0.4 : 1;
   sortedBubbles().forEach(b => {
     const el = bubbleEls.get(b.id);
     let from = el && el._pos;
@@ -537,12 +540,12 @@ function drawLinks(spots){
       const pel = bubbleEls.get(p.id);
       to = pel && pel._pos;
       if(!to && spots && spots[p.id]) to = { x:spots[p.id][0], y:spots[p.id][1] };
-      tr = radiusOf(p);
+      tr = radiusOf(p) * leafIn;
     } else {
       to = { x:0, y:0 }; tr = R_CEN;
     }
     if(!to) return;
-    lines += linkLine(from, radiusOf(b), to, tr, !p);
+    lines += linkLine(from, radiusOf(b) * leafIn, to, tr, !p);
   });
   const svg = document.getElementById('hub-links');
   if(svg) svg.innerHTML = lines;
@@ -893,7 +896,6 @@ function nudgeClear(x, y, selfId){
 const THEMES = [
   { id:'clarity',     name:'Clarity',      ink:'#FFFFFF', line:'rgba(0,0,0,0.09)',       dot:'#0071E3' },
   { id:'claritydark', name:'Clarity Space', ink:'#000000', line:'rgba(255,255,255,0.10)', dot:'#0A84FF' },
-  { id:'paper',     name:'Paper',      ink:'#FBFBFA', line:'rgba(20,24,28,0.13)',    dot:'#2D5F68' },
   { id:'cream',     name:'Cream',      ink:'#F7F1E4', line:'rgba(84,64,38,0.16)',    dot:'#8A5A2B' },
   { id:'blueprint', name:'Blueprint',  ink:'#0E2150', line:'rgba(165,216,255,0.32)', dot:'#38BDF8' },
   { id:'slate',     name:'Slate',      ink:'#151719', line:'rgba(255,255,255,0.09)', dot:'#C08B5C' },
@@ -1807,7 +1809,7 @@ const snowSky = (() => {
 })();
 window.wfSnow = snowSky;
 
-const RETIRED_THEMES = { glass:'clarity', glassdark:'claritydark', orbit:'clarity', prism:'clarity', dark:'claritydark' };
+const RETIRED_THEMES = { glass:'clarity', glassdark:'claritydark', orbit:'clarity', prism:'clarity', dark:'claritydark', paper:'clarity' };
 
 let look = { theme:DEFAULT_THEME, font:'publicsans', scale:100, textColor:'' };
 
@@ -2303,8 +2305,8 @@ let pickedSize = R_SEC;
 let toneTouched = false;          // once a colour is picked by hand, changing the parent no longer overrides it
 let pickedTint = 45;
 /* How strongly a section is filled with its colour: 0 is the theme's own
-   colour, 100 is full colour. Sections made before this existed get 45. */
-const TINT_DEFAULT = 45;
+   colour, 100 is full colour. Sections made before this existed get 50. */
+const TINT_DEFAULT = 50;
 const tintOf = b => (b && typeof b.tint === 'number') ? b.tint : TINT_DEFAULT;
 function tintSlider(value, oninput, onchange){
   return `<div class="tint-row" id="tint-row">
