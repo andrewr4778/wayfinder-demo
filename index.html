@@ -6,7 +6,7 @@
   <title>Wayfinder Demo</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
   <link rel="icon" type="image/svg+xml" href="logo.svg">
-  <link rel="stylesheet" href="styles.css?v=202611122400">
+  <link rel="stylesheet" href="styles.css?v=202611122500">
 </head>
 <body>
 <!-- the Wayfinder mark, drawn once and reused with <use href="#wf-logo">; it takes the colour of its parent -->
@@ -123,10 +123,13 @@
         <button class="sec-dot" id="sec-dot" onclick="openTonePicker(activeBubbleId)" title="Change this section's colour" aria-label="Change this section's colour"></button>
         <input class="sec-title" id="sec-title" aria-label="Section name">
       </div>
-      <div class="sec-actions">
-        <button class="btn btn-sm" onclick="openHelperForDesign()">Ask Cosmo to design this</button>
-        <button class="icon-btn" onclick="deleteCurrentBubble()" title="Delete section">✕</button>
-      </div>
+      <button class="btn btn-sm design-btn" onclick="openHelperForDesign()">
+        <svg class="design-logo" viewBox="0 0 100 100" aria-hidden="true"><use href="#wf-logo"/></svg>
+        <span>Ask Cosmo to design this</span>
+      </button>
+      <button class="trash-del" onclick="deleteCurrentBubble()" title="Delete section" aria-label="Delete section">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9.5 7V5.2c0-.7.5-1.2 1.2-1.2h2.6c.7 0 1.2.5 1.2 1.2V7M6 7l.9 12.2c.1.9.8 1.6 1.7 1.6h6.8c.9 0 1.6-.7 1.7-1.6L18 7M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
     </div>
     <div class="widget-grid" id="widget-grid"></div>
   </div>
@@ -338,7 +341,7 @@
 <div id="modal"><div class="modal-back" onclick="if(event.target===this) closeModal()"><div class="modal-card" id="modal-card"></div></div></div>
 
 <!-- order matters: app.js defines the app, demo.js uses it and calls init() -->
-<script src="app.js?v=202611122400"></script>
-<script src="demo.js?v=202611122400"></script>
+<script src="app.js?v=202611122500"></script>
+<script src="demo.js?v=202611122500"></script>
 </body>
 </html>

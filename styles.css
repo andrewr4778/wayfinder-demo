@@ -356,6 +356,16 @@ img{ max-width:100%; }
   :root[data-theme="forest"] .tone-green{  --tone:#2D7A4C; --tone-soft:#D9F1E3; }
   :root[data-theme="forest"] .tone-rose{   --tone:#B93F62; --tone-soft:#F9DDE6; }
   :root[data-theme="forest"] .tone-blue{   --tone:#2961B2; --tone-soft:#DCE7FA; }
+  :root[data-theme="forest"] .tone-red{    --tone:#B3262E; --tone-soft:#FBDADC; }
+  :root[data-theme="forest"] .tone-scarlet{ --tone:#C8260F; --tone-soft:#FADAD3; }
+  :root[data-theme="forest"] .tone-orange{ --tone:#A85508; --tone-soft:#FBE3CB; }
+  :root[data-theme="forest"] .tone-yellow{ --tone:#8A6E00; --tone-soft:#F7EDB5; }
+  :root[data-theme="forest"] .tone-brown{  --tone:#6F4527; --tone-soft:#EADCCF; }
+  :root[data-theme="forest"] .tone-black{  --tone:#1A1A1F; --tone-soft:#D8D8DC; }
+  :root[data-theme="forest"] .tone-white{  --tone:#FFFFFF; --tone-soft:#F0F0F0; }
+  /* a white section is the one place oat-milk names would vanish: give it the dark text */
+  :root[data-theme="forest"] .bubble.section.tone-white .b-name,
+  :root[data-theme="forest"] .bubble.section.tone-white .b-meta{ color:var(--text) !important; }
 
 
   /* =====================================================================
@@ -435,6 +445,16 @@ img{ max-width:100%; }
   .tone-green{ --tone:#55CE88; --tone-soft:#0F3020; }
   .tone-rose{ --tone:#EE7898; --tone-soft:#3A1520; }
   .tone-blue{ --tone:#5F9DEE; --tone-soft:#0F2442; }
+  .tone-red{ --tone:#E04650; --tone-soft:#3A1418; }
+  .tone-scarlet{ --tone:#FF3B1F; --tone-soft:#3D120B; }
+  .tone-orange{ --tone:#F58A2E; --tone-soft:#38200A; }
+  .tone-yellow{ --tone:#F6D84A; --tone-soft:#3A320A; }
+  .tone-brown{ --tone:#A9714B; --tone-soft:#2E1D12; }
+  .tone-black{ --tone:#15151A; --tone-soft:#08080A; }
+  .tone-white{ --tone:#F5F5F5; --tone-soft:#3A3A3C; }
+  .tone-white .b-name, .bubble.tone-white .b-name{ color:#14171C; text-shadow:none; }
+  .bubble.section.tone-white .b-meta{ color:rgba(20,23,28,0.7); text-shadow:none; }
+  .tone-swatch.tone-black, .tone-swatch.tone-white{ box-shadow:inset 0 0 0 1px rgba(128,128,128,0.55); }
   /* …and their darker cousins on the light ones */
   /* Every theme sits on one flat colour: no colour washes and no starfield
      behind the grid. This comes after the theme blocks so it wins over all of them. */
@@ -445,6 +465,13 @@ img{ max-width:100%; }
   :root[data-theme="cream"] .tone-green{ --tone:#2D8A54; --tone-soft:#D9F1E3; }
   :root[data-theme="cream"] .tone-rose{ --tone:#B93F62; --tone-soft:#F9DDE6; }
   :root[data-theme="cream"] .tone-blue{ --tone:#2961B2; --tone-soft:#DCE7FA; }
+  :root[data-theme="cream"] .tone-red{ --tone:#B3262E; --tone-soft:#FBDADC; }
+  :root[data-theme="cream"] .tone-scarlet{ --tone:#C8260F; --tone-soft:#FADAD3; }
+  :root[data-theme="cream"] .tone-orange{ --tone:#B85F0C; --tone-soft:#FBE3CB; }
+  :root[data-theme="cream"] .tone-yellow{ --tone:#B89400; --tone-soft:#F7EDB5; }
+  :root[data-theme="cream"] .tone-brown{ --tone:#6F4527; --tone-soft:#EADCCF; }
+  :root[data-theme="cream"] .tone-black{ --tone:#1A1A1F; --tone-soft:#D8D8DC; }
+  :root[data-theme="cream"] .tone-white{ --tone:#FFFFFF; --tone-soft:#F0F0F0; }
 
   *{ box-sizing:border-box; }
   @media (prefers-reduced-motion: reduce){ *{ animation-duration:0.001ms !important; transition-duration:0.001ms !important; } }
@@ -536,7 +563,10 @@ img{ max-width:100%; }
   ::selection{ background:var(--accent-soft); }
 
   .wrap{ max-width:1200px; margin:0 auto; padding:0 20px 120px; }
-  .topbar{ display:flex; align-items:center; justify-content:space-between; gap:14px; padding:24px 0 6px; flex-wrap:wrap; }
+  /* the bar floats over the graph, but only its buttons catch clicks — a bubble sitting under the empty space or the greeting text can still be grabbed */
+  .topbar{ pointer-events:none; }
+  .topbar .btn, .topbar .alert-btn{ pointer-events:auto; }
+  .topbar{ position:relative; z-index:20; display:flex; align-items:center; justify-content:space-between; gap:14px; padding:24px 0 6px; flex-wrap:wrap; }
   .greet{ font-size:2.4rem; font-weight:700; letter-spacing:var(--track-xl); }
   .greet .sub{ display:block; font-family:'Public Sans',sans-serif; font-size:0.8rem; font-weight:400; color:var(--text-muted); margin-top:3px; letter-spacing:0.01em; }
   .topbar-actions{ display:flex; align-items:center; gap:8px; }
@@ -588,7 +618,7 @@ img{ max-width:100%; }
   /* the hub has no surface of its own — it sits straight on the page grid */
   .hub-canvas{
     position:relative; width:100%; height:min(80vh, 760px); min-height:460px; margin-top:2px;
-    border-radius:var(--radius, 18px); border:1px solid transparent; overflow:hidden; touch-action:none;
+    border-radius:var(--radius, 18px); border:1px solid transparent; overflow:visible; touch-action:none;
     background:transparent; transition:border-color .18s ease; cursor:grab;
   }
   .hub-canvas.panning{ cursor:grabbing; }
@@ -727,7 +757,7 @@ img{ max-width:100%; }
       radial-gradient(circle at 32% 24%, rgba(255,255,255,0.24) 0, rgba(255,255,255,0.07) 26%, rgba(255,255,255,0) 46%),
       linear-gradient(155deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 34%, transparent 50%),
       radial-gradient(circle at 50% 118%, color-mix(in srgb, var(--tone) calc(var(--tint, 50) * 0.45%), transparent) 0, transparent 58%),
-      radial-gradient(circle at 36% 30%, color-mix(in srgb, var(--fill) 85%, transparent) 0, color-mix(in srgb, var(--fill) 85%, transparent) 38%, color-mix(in srgb, color-mix(in srgb, var(--fill), #000 14%) 88%, transparent) 100%);
+      radial-gradient(circle at 36% 30%, var(--fill) 0, var(--fill) 38%, color-mix(in srgb, var(--fill), #000 14%) 100%);
     -webkit-backdrop-filter:blur(6px) saturate(1.2); backdrop-filter:blur(6px) saturate(1.2);
     border:1.5px solid color-mix(in srgb, color-mix(in srgb, var(--tone), #fff 14%) calc(65% + var(--tint, 50) * 0.35%), var(--border));
     box-shadow:
@@ -1344,6 +1374,53 @@ img{ max-width:100%; }
     #tc-body{ font-size:0.84rem; }
     .tw-credit{ position:static; margin-top:28px; }
   }
+
+/* section header: title on the left, Cosmo's design button dead centre, trash on the right */
+.sec-head{ display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center; }
+.sec-head .design-btn{ display:inline-flex; align-items:center; gap:8px; justify-self:center; }
+.sec-head .design-logo{ width:18px; height:18px; flex:0 0 auto; color:var(--accent); }
+.sec-head .trash-del{ justify-self:end; display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px;
+  border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--text-muted); cursor:pointer;
+  transition:background .15s ease, color .15s ease, border-color .15s ease; }
+.sec-head .trash-del:hover{ background:color-mix(in srgb, #E5484D 16%, var(--surface)); color:#E5484D; border-color:#E5484D; }
+@media (max-width:640px){
+  .sec-head{ grid-template-columns:minmax(0,1fr) auto; row-gap:10px; }
+  .sec-head .sec-title-wrap{ grid-column:1 / -1; }
+  .sec-head .design-btn{ justify-self:start; }
+}
+
+/* editable table cells */
+table.w-table td.cell-edit{ cursor:text; border-radius:4px; }
+table.w-table td.cell-edit:hover{ background:var(--surface-2); }
+table.w-table .cell-input{ width:100%; min-width:60px; font:inherit; color:var(--text); background:var(--surface);
+  border:1px solid var(--accent); border-radius:6px; padding:3px 6px; outline:none; box-sizing:border-box; }
+table.w-table td.row-acts{ text-align:right; white-space:nowrap; }
+table.w-table td.row-acts .icon-btn{ opacity:0.55; }
+table.w-table tr:hover td.row-acts .icon-btn{ opacity:1; }
+
+/* sub-sections pulled into their main section */
+.rollup-bar{ grid-column:1 / -1; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
+  padding:12px 16px; border:1px solid var(--border); border-radius:var(--r-lg, 14px); background:var(--surface); }
+.rollup-text{ display:flex; flex-direction:column; gap:2px; font-size:0.86rem; }
+.rollup-text span{ color:var(--text-muted); font-size:0.8rem; }
+.rollup-switch{ display:inline-flex; align-items:center; gap:9px; cursor:pointer; font-size:0.84rem; font-weight:600; user-select:none; }
+.rollup-switch input{ position:absolute; opacity:0; width:0; height:0; }
+.rs-track{ width:38px; height:22px; border-radius:99px; background:var(--surface-2); border:1px solid var(--border); position:relative; transition:background .18s ease; flex:0 0 auto; }
+.rs-track i{ position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:var(--text-muted); transition:transform .18s ease, background .18s ease; }
+.rollup-switch input:checked + .rs-track{ background:var(--accent); border-color:var(--accent); }
+.rollup-switch input:checked + .rs-track i{ transform:translateX(16px); background:#fff; }
+.rollup-switch input:focus-visible + .rs-track{ outline:2px solid var(--accent); outline-offset:2px; }
+.rollup-head{ grid-column:1 / -1; display:flex; align-items:center; gap:10px; margin-top:10px; padding:4px 2px 0;
+  border-top:1px solid var(--border); padding-top:16px; }
+.rollup-head .sec-dot{ width:11px; height:11px; }
+.rollup-name{ font-weight:650; font-size:0.98rem; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rollup-sep{ color:var(--text-muted); font-weight:400; margin:0 2px; }
+.rollup-count{ color:var(--text-muted); font-size:0.78rem; margin-right:auto; white-space:nowrap; }
+.rollup-panels{ display:contents; }
+.rollup-panels .widget{ border-left:3px solid var(--tone, var(--accent)); }
+.rollup-panels .w-head .row, .rollup-panels .add-inline, .rollup-panels .row-acts, .rollup-panels button.btn{ display:none !important; }
+.rollup-panels input[data-wid^="add:"]{ display:none !important; }
+.rollup-panels .icon-btn{ display:none !important; }
 
 /* ===================== GLASS =====================
    The original layout, in frosted glass: the tool bar under the greeting,
