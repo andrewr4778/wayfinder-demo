@@ -93,7 +93,8 @@ const state = { bubbles:[], tasks:[], important:[], chat:[], meta:[], drawing:[]
 /* ============ app state ============ */
 let view = 'hub';            // 'hub' | 'section'
 let activeBubbleId = null;
-const TONES = ['teal','amber','violet','green','rose','blue'];
+const TONES = ['teal','amber','violet','green','rose','blue'];   // the ones new sections cycle through
+const ALL_TONES = TONES.concat(['red','scarlet','orange','yellow','brown','black','white']);   // everything the picker offers
 
 function bubbleById(id){ return state.bubbles.find(b => b.id === id) || null; }
 function sortedBubbles(){ return state.bubbles.slice().sort((a,b) => (a.createdAt||0) - (b.createdAt||0)); }
@@ -2316,10 +2317,10 @@ function tintSlider(value, oninput, onchange){
       <span>Full colour</span>
     </div>`;
 }
-const TONE_NAMES = { none:'No colour', teal:'Teal', amber:'Amber', violet:'Violet', green:'Green', rose:'Rose', blue:'Blue' };
+const TONE_NAMES = { none:'No colour', teal:'Teal', amber:'Amber', violet:'Violet', green:'Green', rose:'Rose', blue:'Blue', red:'Red', scarlet:'Scarlet', orange:'Orange', yellow:'Yellow', brown:'Brown', black:'Black', white:'White' };
 /* the swatches: "no colour" first, then the six section colours */
 function toneSwatches(selected, onPick){
-  return ['none'].concat(TONES).map(t =>
+  return ['none'].concat(ALL_TONES).map(t =>
     `<button class="tone-swatch tone-${t} ${t === selected ? 'sel' : ''}" data-tone="${t}" onclick="${onPick}('${t}')"
        title="${TONE_NAMES[t]}" aria-label="${TONE_NAMES[t]}"></button>`).join('');
 }
@@ -2672,9 +2673,13 @@ function renderSection(){
 
   html += widgets.map(w => renderWidget(b, w)).join('');
   html += `<button class="add-widget" onclick="openAddWidget()">+ Add panel</button>`;
+  html += rollupHtml(b);
   const carried = captureGridState(grid);
+  gridRendering = true;
   grid.innerHTML = html;
+  gridRendering = false;
   restoreGridState(grid, carried);
+  reopenCellEdit(grid);
 
   if(!widgets.length && !secTasks.length){
     grid.insertAdjacentHTML('afterbegin', `<div class="widget size-md"><div class="w-body">
@@ -2683,6 +2688,54 @@ function renderSection(){
       <button class="btn btn-primary btn-sm" style="align-self:flex-start;" onclick="openHelperForDesign()">Ask Cosmo</button>
     </div></div>`);
   }
+}
+/* ---- pulling sub-sections into their main section ----
+   A section with sub-sections gets a switch. Turned on, every sub-section (and
+   anything branching off those) shows its panels here, under its own heading.
+   It is a live view, not a copy: nothing is duplicated, the sub-sections keep
+   their own data, and an edit made there shows up here straight away. The
+   pulled-in panels are read-only here; "Open" jumps to the sub-section to edit. */
+function descendantsOf(id){
+  const out = [], seen = new Set([id]);
+  const walk = (pid, path) => {
+    sortedBubbles().filter(c => (parentOf(c) || {}).id === pid).forEach(c => {
+      if(seen.has(c.id)) return;
+      seen.add(c.id);
+      out.push({ b: c, path: path.concat(c.name) });
+      walk(c.id, path.concat(c.name));
+    });
+  };
+  walk(id, []);
+  return out;
+}
+function rollupHtml(b){
+  const subs = descendantsOf(b.id);
+  if(!subs.length) return '';
+  const on = !!b.rollup;
+  let html = `<div class="rollup-bar">
+    <div class="rollup-text"><strong>${subs.length} sub-section${subs.length === 1 ? '' : 's'}</strong>
+      <span>${on ? 'Their info is shown below.' : 'Show all their info here in one place.'}</span></div>
+    <label class="rollup-switch"><input type="checkbox" ${on ? 'checked' : ''} onchange="setRollup('${b.id}', this.checked)">
+      <span class="rs-track"><i></i></span><span class="rs-label">Bring sub-sections in</span></label>
+  </div>`;
+  if(!on) return html;
+  subs.forEach(({ b: c, path }) => {
+    const ws = getWidgets(c);
+    html += `<div class="rollup-head tone-${c.tone || 'teal'}">
+      <span class="sec-dot"></span>
+      <span class="rollup-name">${path.map(esc).join(' <span class="rollup-sep">›</span> ')}</span>
+      <span class="rollup-count">${ws.length ? ws.length + ' panel' + (ws.length === 1 ? '' : 's') : 'no panels yet'}</span>
+      <button class="btn btn-sm" onclick="openSection('${c.id}')">Open ›</button>
+    </div>
+    <div class="rollup-panels tone-${c.tone || 'teal'}" inert>${ws.map(w => renderWidget(c, w)).join('')}</div>`;
+  });
+  return html;
+}
+function setRollup(id, on){
+  const b = bubbleById(id); if(!b) return;
+  b.rollup = !!on;                                   // show it straight away; the save catches up
+  renderSection();
+  cols.bubbles.update(id, { rollup: !!on }).catch(() => toast('Could not save that — try again.'));
 }
 function widgetShell(w, body, plain){
   return `<div class="widget size-${w.size}">
@@ -2732,8 +2785,8 @@ function renderWidget(b, w){
     const colsArr = d.columns && d.columns.length ? d.columns : ['Item','Value'];
     body = `<div class="tbl-scroll"><table class="w-table">
       <thead><tr>${colsArr.map(c=>`<th>${esc(c)}</th>`).join('')}<th></th></tr></thead>
-      <tbody>${(d.rows||[]).map((r,ri)=>`<tr>${colsArr.map((c,ci)=>`<td>${esc(r[ci] != null ? r[ci] : '')}</td>`).join('')}
-        <td style="text-align:right;"><button class="icon-btn" onclick="removeRow('${w.id}',${ri})">✕</button></td></tr>`).join('')}</tbody>
+      <tbody>${(d.rows||[]).map((r,ri)=>`<tr>${colsArr.map((c,ci)=>`<td class="cell-edit" title="Click to edit" onclick="editCell(this,'${w.id}',${ri},${ci})">${esc(r[ci] != null ? r[ci] : '')}</td>`).join('')}
+        <td class="row-acts"><button class="icon-btn" title="Edit row" aria-label="Edit row" onclick="editRow('${w.id}',${ri})">✎</button><button class="icon-btn" title="Delete row" aria-label="Delete row" onclick="removeRow('${w.id}',${ri})">✕</button></td></tr>`).join('')}</tbody>
     </table></div>
     ${(d.rows||[]).length ? '' : '<div class="w-empty">No rows yet.</div>'}
     <button class="btn btn-sm" style="align-self:flex-start;" onclick="addRow('${w.id}')">+ Row</button>`;
@@ -2854,6 +2907,81 @@ function bumpProgress(wid, iid, delta){ withWidget(activeBubbleId, wid, w => {
   (w.data.items||[]).forEach(i => { if(i.id===iid) i.pct = clamp(Math.round((i.pct||0)+delta),0,100); }); }); }
 function toggleHabit(wid, iid, ds){ withWidget(activeBubbleId, wid, w => {
   (w.data.items||[]).forEach(i => { if(i.id===iid){ i.completions = i.completions||{}; if(i.completions[ds]) delete i.completions[ds]; else i.completions[ds] = true; } }); }); }
+/* ---- editing table rows in place ----
+   Click a cell to type over it (Enter or clicking away saves, Esc cancels), or use
+   the pencil on a row to edit every column at once. Both write to the same panel
+   data Cosmo reads, and both can be undone. */
+let editingCell = null, gridRendering = false;
+function tableRowFor(wid, ri){
+  const b = bubbleById(activeBubbleId); const w = b && getWidgets(b).find(x => x.id === wid);
+  if(!w) return null;
+  const colsArr = w.data.columns && w.data.columns.length ? w.data.columns : ['Item','Value'];
+  return { w, colsArr, row: (w.data.rows || [])[ri] };
+}
+function editCell(td, wid, ri, ci, keep){
+  if(td.querySelector('input')) return;
+  const t = tableRowFor(wid, ri); if(!t || !t.row) return;
+  const original = t.row[ci] != null ? String(t.row[ci]) : '';
+  const value = keep != null ? keep : original;
+  editingCell = { wid, ri, ci, original, value };
+  td.innerHTML = '<input class="cell-input" aria-label="Edit ' + esc(t.colsArr[ci] || 'cell') + '">';
+  const inp = td.querySelector('input');
+  inp.value = value;
+  inp.addEventListener('click', e => e.stopPropagation());
+  inp.addEventListener('input', () => { if(editingCell) editingCell.value = inp.value; });
+  inp.addEventListener('keydown', e => {
+    if(e.key === 'Enter'){ e.preventDefault(); inp.blur(); }
+    else if(e.key === 'Escape'){ e.preventDefault(); const o = editingCell ? editingCell.original : ''; editingCell = null; td.textContent = o; }
+    else if(e.key === 'Tab'){                     // Tab hops to the next cell in the row
+      e.preventDefault();
+      const next = e.shiftKey ? td.previousElementSibling : td.nextElementSibling;
+      commitCell(inp);
+      if(next && next.classList.contains('cell-edit')) setTimeout(() => next.click(), 0);
+    }
+  });
+  inp.addEventListener('blur', () => commitCell(inp));
+  inp.focus();
+  if(keep == null) inp.select();
+}
+function commitCell(inp){
+  if(gridRendering || !editingCell) return;       // a re-render, not the person leaving the cell
+  const { wid, ri, ci, original } = editingCell;
+  const val = inp.value.trim();
+  editingCell = null;
+  if(val === original.trim()){ if(inp.parentNode) inp.parentNode.textContent = original; return; }   // put the text back without redrawing, so a click elsewhere still lands
+  withUndo(activeBubbleId, 'editing a table cell', ws => {
+    const t = ws.find(x => x.id === wid); if(!t) return;
+    const rows = t.data.rows || [];
+    if(!rows[ri]) return;
+    const row = rows[ri].slice();
+    while(row.length <= ci) row.push('');
+    row[ci] = val;
+    rows[ri] = row;
+    t.data.rows = rows;
+  });
+}
+function reopenCellEdit(grid){
+  if(!editingCell) return;
+  const { wid, ri, ci, value } = editingCell;
+  const td = grid.querySelector('td.cell-edit[onclick="editCell(this,\'' + wid + '\',' + ri + ',' + ci + ')"]');
+  if(td) editCell(td, wid, ri, ci, value); else editingCell = null;
+}
+function editRow(wid, ri){
+  const t = tableRowFor(wid, ri); if(!t || !t.row) return;
+  openModal('Edit row', `
+    ${t.colsArr.map((c,i) => `<div class="field"><label>${esc(c)}</label><input class="input" id="row-f-${i}" value="${esc(t.row[i] != null ? t.row[i] : '')}"></div>`).join('')}
+    <button class="btn btn-primary" onclick="submitEditRow('${wid}', ${ri}, ${t.colsArr.length})">Save</button>`);
+  setTimeout(() => { const f = document.getElementById('row-f-0'); if(f) f.focus(); }, 30);
+}
+function submitEditRow(wid, ri, n){
+  const vals = []; for(let i=0;i<n;i++){ const el = document.getElementById('row-f-'+i); vals.push(el ? el.value.trim() : ''); }
+  withUndo(activeBubbleId, 'editing a table row', ws => {
+    const t = ws.find(x => x.id === wid); if(!t || !(t.data.rows||[])[ri]) return;
+    const old = t.data.rows[ri];
+    t.data.rows[ri] = vals.concat(old.slice(n));    // keep any extra columns untouched
+  });
+  closeModal();
+}
 function removeRow(wid, ri){
   withUndo(activeBubbleId, 'deleting a table row', ws => {
     const t = ws.find(x => x.id === wid);
@@ -3480,11 +3608,11 @@ function hubSnapshot(){
   sortedBubbles().forEach(b => { if(!seen.has(b.id)) describe(b, 0); });
   if(!state.bubbles.length) lines.push('- none yet');
   const open = openTasks();
-  lines.push('OPEN TO-DOS (' + open.length + '): ' + (open.slice(0,18).map(t => {
+  lines.push('OPEN TO-DOS (' + open.length + '): ' + (open.map(t => {
     const b = t.bubbleId ? bubbleById(t.bubbleId) : null;
     return t.text + (t.due ? ' [due ' + t.due + ']' : '') + (b ? ' {' + b.name + '}' : '');
   }).join('; ') || 'none'));
-  const imp = state.important.slice(0,10).map(i => i.text).join('; ');
+  const imp = state.important.map(i => i.text).join('; ');
   lines.push('PINNED IMPORTANT INFO: ' + (imp || 'none'));
   return lines.join('\n');
 }
@@ -3495,9 +3623,9 @@ function sectionDetail(id){
     const d = w.data;
     let body = '';
     if(w.type === 'checklist') body = (d.items||[]).map(i => (i.done?'[x] ':'[ ] ') + i.text).join(' | ');
-    else if(w.type === 'notes') body = (d.text||'').slice(0,400);
+    else if(w.type === 'notes') body = (d.text||'');
     else if(w.type === 'metric') body = String(d.value) + (d.unit||'') + (d.target?(' of ' + d.target):'') + ' — ' + (d.label||'');
-    else if(w.type === 'table') body = (d.columns||[]).join(' / ') + ' :: ' + (d.rows||[]).slice(0,12).map(r => r.join(' / ')).join(' | ');
+    else if(w.type === 'table') body = (d.columns||[]).join(' / ') + ' :: ' + (d.rows||[]).length + ' rows total :: ' + (d.rows||[]).map((r, n) => (n+1) + '. ' + r.join(' / ')).join(' | ');
     else if(w.type === 'dates') body = (d.items||[]).map(i => i.label + ' ' + i.date).join(' | ');
     else if(w.type === 'progress') body = (d.items||[]).map(i => i.label + ' ' + (i.pct||0) + '%').join(' | ');
     else if(w.type === 'habit') body = (d.items||[]).map(i => i.name + ' (' + streakOf(i) + 'd streak)').join(' | ');
@@ -3507,7 +3635,7 @@ function sectionDetail(id){
       const ready = rows.filter(r => draftFor(r.id)).length;
       body = rows.length
         ? (rows.length + ' applications, ' + ready + ' tailored: '
-           + rows.slice(0,12).map(r => (r.company || 'untitled') + (draftFor(r.id) ? ' ✓' : '')).join(', ')
+           + rows.map(r => (r.company || 'untitled') + (draftFor(r.id) ? ' ✓' : '')).join(', ')
            + ((d.resume||'').trim() ? '' : ' — no résumé saved yet'))
         : 'no applications yet';
     }
@@ -3541,7 +3669,7 @@ function buildTools(){
       name: 'readSection',
       description: 'Returns the full contents of one section, including the data inside each panel. Use before redesigning a section so you do not throw away what is already there.',
       inputSchema: { type:'object', properties:{ sectionId:{type:'string'}, sectionName:{type:'string'} } },
-      execute: async (input) => { const b = resolveBubble(input || {}); return b ? sectionDetail(b.id) : 'No such section.'; },
+      execute: async (input) => { const b = resolveBubble(input || {}); if(!b) return 'No such section.'; const subs = descendantsOf(b.id); return sectionDetail(b.id) + (subs.length ? '\n\nSUB-SECTIONS of "' + b.name + '"' + (b.rollup ? ' (shown inside it)' : '') + ':\n' + subs.map(x => sectionDetail(x.b.id)).join('\n\n') : ''); },
     },
     {
       name: 'designSection',
@@ -3624,13 +3752,13 @@ function buildTools(){
       description: 'Creates a new section bubble on the hub. Pass branchesOff to hang it under an existing section instead of off the middle — that is how sub-sections are made (e.g. a "Calculus" bubble branching off "School"). Returns its id so you can design it straight away.',
       inputSchema: { type:'object', properties:{
         name:{type:'string'},
-        tone:{type:'string', enum:['teal','amber','violet','green','rose','blue']},
+        tone:{type:'string', enum:ALL_TONES},
         branchesOff:{type:'string', description:'Optional name or id of the section this one hangs off'}
       }, required:['name'] },
       execute: async (input) => {
         const name = String(input.name||'').trim();
         if(!name) throw new Error('name is required');
-        const tone = TONES.includes(input.tone) ? input.tone : TONES[state.bubbles.length % TONES.length];
+        const tone = ALL_TONES.includes(input.tone) ? input.tone : TONES[state.bubbles.length % TONES.length];
         const doc = { name, tone, widgets: [], createdAt: Date.now() };
         let under = null;
         if(input.branchesOff){
