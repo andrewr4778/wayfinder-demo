@@ -1155,6 +1155,12 @@ img{ max-width:100%; }
   .due{ font-family:var(--font-ui); font-variant-numeric:tabular-nums; font-size:0.7rem; color:var(--text-muted); }
   .due.today{ color:var(--warning); } .due.over{ color:var(--danger); }
 
+  .history-bar{
+    position:fixed; left:16px; top:calc(84px + env(safe-area-inset-top,0px)); z-index:45;
+    display:flex; gap:5px; padding:5px; border-radius:980px;
+    background:var(--surface);
+    border:1px solid var(--border); box-shadow:var(--shadow-sm);
+  }
   .hist-btn{
     width:32px; height:32px; display:flex; align-items:center; justify-content:center;
     border:none; background:transparent; color:var(--text-muted); border-radius:50%; cursor:pointer;
@@ -1234,6 +1240,8 @@ img{ max-width:100%; }
   @media (max-width:560px){
     /* on a phone the toolbar would sit on top of a bubble — dock it at the foot instead */
     .ink-bar{ left:8px; right:8px; top:auto; bottom:8px; padding:5px; gap:4px; justify-content:center; }
+    .history-bar{ left:10px; top:calc(74px + env(safe-area-inset-top,0px)); }
+    .sec-head{ padding-top:52px; }
     .hub-hint{ display:none; }
     .ink-btn{ padding:5px 8px; font-size:0.72rem; }
     .ink-size{ display:none; }
@@ -1423,8 +1431,8 @@ table.w-table tr:hover td.row-acts .icon-btn{ opacity:1; }
 .rollup-panels .icon-btn{ display:none !important; }
 
 /* ===================== GLASS =====================
-   The original layout, in frosted glass: the tool bar under the greeting,
-   the zoom bar, panels, sheets, dialogs and bubbles are see-through panes
+   The original layout, in frosted glass: the top-bar buttons, the undo pill,
+   the map toolbars, the section list, panels, sheets, dialogs and bubbles are see-through panes
    of the theme's own surface colour, blurring whatever sits behind them, with a
    thin light rim and a soft sheen across the top. Each theme keeps its colours;
    the glass is mixed from them. Comes last so it wins over the rules above. */
@@ -1453,12 +1461,14 @@ body{
 }
 
 /* ---- bars and panels ---- */
-.tool-bar, .ink-bar, .zoom-bar, .minimap, .activity, .thought, .widget{
+.history-bar, .alert-btn, .ink-bar, .zoom-bar, .minimap, .activity, .thought, .widget, .section-nav{
   background:var(--glass-sheen), var(--glass);
   border:1px solid var(--glass-line);
   -webkit-backdrop-filter:var(--glass-blur); backdrop-filter:var(--glass-blur);
   box-shadow:var(--glass-hi), var(--shadow);
 }
+.alert-btn:hover{ border-color:var(--warning); }
+.alert-btn.alerting{ border-color:color-mix(in srgb, var(--danger) 45%, var(--glass-line)); }
 .widget{ border-radius:22px; }
 .widget:hover{ border-color:color-mix(in srgb, var(--accent) 34%, var(--glass-line)); }
 .w-head{ border-bottom-color:var(--glass-line); }
@@ -1501,41 +1511,156 @@ body{
 }
 .bubble.section{ -webkit-backdrop-filter:blur(14px) saturate(1.4); backdrop-filter:blur(14px) saturate(1.4); }
 
-/* ---- the tool bar: one glass pill centred under the greeting ----
-   App-wide buttons on the left and right, the map's Move / Draw / Erase in the
-   middle (with the pen colours and size opening beside them while drawing). */
-.tool-row{ display:flex; justify-content:center; margin:4px 0 12px; flex:0 0 auto; position:relative; z-index:5; }
-.tool-bar{ display:flex; align-items:center; gap:4px; padding:6px 8px; border-radius:999px; max-width:100%;
-  min-width:min(820px, 100%); }
-/* the bar is long: its groups spread out, and the spacers give way when drawing tools open */
-.tool-grow{ flex:1 1 auto; min-width:14px; }
-.tool-btn{ position:relative; flex:0 0 auto; width:38px; height:38px; display:flex; align-items:center; justify-content:center;
-  border:none; border-radius:50%; background:transparent; color:var(--text-muted); cursor:pointer;
-  transition:background .15s var(--ease-quick), color .15s var(--ease-quick), transform .16s var(--ease-pop); }
-.tool-bar .alert-btn{ width:38px; height:38px; border:none; background:transparent; box-shadow:none;
-  -webkit-backdrop-filter:none; backdrop-filter:none; }
-.tool-btn:hover:not(:disabled){ background:color-mix(in srgb, var(--text) 9%, transparent); color:var(--text); }
-.tool-btn:active:not(:disabled){ transform:scale(0.92); }
-.tool-btn[hidden]{ display:none; }
-.tool-bar #imp-btn{ color:var(--warning); }
-.tool-bar #imp-btn.alerting{ color:var(--danger); }
-.tool-home, .tool-home:hover{ color:var(--accent) !important; }
-.tool-sep{ flex:0 0 auto; width:1px; height:22px; margin:0 4px; background:var(--glass-line); }
-/* Move / Draw / Erase sit inside the bar instead of floating over the map */
-.tool-bar .ink-bar{ position:static; display:flex; flex-wrap:nowrap; align-items:center; gap:4px; padding:0; margin:0;
-  background:none; border:none; border-radius:0; box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none; }
-.tool-bar #ink-tools{ flex-wrap:nowrap !important; }
-/* the map tools only mean something on the map */
-html:not(.hub-mode) .tool-bar .ink-bar, html:not(.hub-mode) .tool-sep-map{ display:none; }
-/* narrow screens: the bar scrolls sideways rather than wrapping */
-@media (max-width: 700px){
-  .tool-bar{ overflow-x:auto; scrollbar-width:none; justify-content:flex-start; min-width:0; width:100%; }
-  .tool-grow{ min-width:4px; }
-  .tool-bar::-webkit-scrollbar{ display:none; }
-}
+/* small phones: the drawing toolbar docks along the map's foot, so the zoom bar steps up above it */
 @media (max-width: 560px){
-  .tool-btn, .tool-bar .alert-btn{ width:34px; height:34px; }
-  .tool-sep{ margin:0 2px; }
-  /* room is tight: the logo goes (sections have their own "‹ Hub") so the warning button's badge stays in view */
-  .tool-home, .tool-home + .tool-sep{ display:none; }
+  .zoom-bar{ bottom:60px; }
 }
+
+/* ---- the section list on the right ----
+   Every section in its colour, sub-sections indented under the one they
+   branch off, the open one highlighted. It hides behind a solid line on the
+   right edge, centred top to bottom; press the line to pop it out. */
+.section-nav-wrap{ position:fixed; z-index:46; right:max(16px, env(safe-area-inset-right, 0px)); top:50%; transform:translateY(-50%); }
+/* the line that pops the list out: a solid bar on the edge, with a wider
+   invisible area around it so it is easy to hit */
+.sn-toggle{ width:34px; height:160px; display:flex; align-items:center; justify-content:center; padding:0;
+  border:none; background:transparent; cursor:pointer; }
+.sn-line{ display:block; width:13px; height:120px; border-radius:99px;
+  background:color-mix(in srgb, var(--text) 38%, transparent);
+  box-shadow:0 0 0 1px color-mix(in srgb, var(--surface) 60%, transparent), var(--shadow-sm);
+  transition:height .22s var(--ease), background .18s var(--ease-quick), width .18s var(--ease-quick); }
+.sn-toggle:hover .sn-line, .sn-toggle:focus-visible .sn-line{ height:140px; width:14px; background:var(--accent); }
+.sn-toggle:active .sn-line{ height:130px; }
+.section-nav-wrap.open .sn-line{ height:140px; width:14px; background:var(--accent); }
+/* the list itself, beside the button and centred on it; hidden until the logo is pressed */
+.section-nav{
+  position:absolute; right:calc(100% + 6px); top:50%; width:220px; max-height:calc(100vh - 48px);
+  display:flex; flex-direction:column; gap:1px; padding:10px; border-radius:22px;
+  overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin;
+  opacity:0; visibility:hidden; pointer-events:none; transform-origin:right center;
+  transform:translate(10px, -50%) scale(0.98);
+  transition:opacity .18s var(--ease-quick), transform .24s var(--ease), visibility 0s linear .24s;
+}
+.section-nav-wrap.open .section-nav{ opacity:1; visibility:visible; pointer-events:auto; transform:translate(0, -50%);
+  transition:opacity .18s var(--ease-quick), transform .24s var(--ease), visibility 0s; }
+@media (max-width: 560px){
+  .section-nav-wrap{ right:max(10px, env(safe-area-inset-right, 0px)); }
+  .section-nav{ width:min(230px, calc(100vw - 80px)); }
+}
+.sn-item{ display:flex; align-items:center; gap:9px; width:100%; min-width:0; padding:7px 10px; border:none; border-radius:11px;
+  background:transparent; color:var(--text); font:500 0.86rem/1.25 var(--font-ui); text-align:left; cursor:pointer;
+  transition:background .15s var(--ease-quick), color .15s var(--ease-quick); }
+.sn-item:hover{ background:color-mix(in srgb, var(--text) 7%, transparent); }
+.sn-item.on{ background:var(--accent-soft); color:var(--accent); font-weight:650; }
+.sn-hub{ font-weight:600; }
+.sn-logo{ width:18px; height:18px; flex:0 0 auto; color:var(--accent); }
+.sn-dot{ width:10px; height:10px; flex:0 0 auto; border-radius:50%; background:var(--tone);
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--tone) 20%, transparent); }
+.sn-dot.tone-none{ background:transparent; box-shadow:none; border:1.5px solid var(--text-muted); }
+.sn-name{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sn-label{ padding:14px 10px 6px; font:600 0.66rem/1 var(--font-ui); letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted); }
+.sn-list, .sn-kids{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:1px; }
+/* sub-sections hang off a thin line under their parent */
+.sn-kids{ margin:1px 0 3px 15px; padding-left:6px; border-left:1px solid var(--glass-line); }
+.sn-kids .sn-item{ font-size:0.82rem; color:var(--text-muted); padding-top:6px; padding-bottom:6px; }
+.sn-kids .sn-item:hover{ color:var(--text); }
+.sn-kids .sn-item.on{ color:var(--accent); }
+.sn-kids .sn-dot{ width:8px; height:8px; }
+.sn-empty{ margin:4px 10px; font-size:0.8rem; color:var(--text-muted); }
+
+/* ---- Cosmo on the left edge ----
+   The logo, centred top to bottom. Pressing it opens Cosmo, just like the middle bubble. */
+.cosmo-handle{ position:fixed; z-index:46; left:max(16px, env(safe-area-inset-left, 0px)); top:50%; transform:translateY(-50%);
+  width:52px; height:52px; padding:0; border:none; background:transparent; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; }
+.ch-logo{ position:relative; width:46px; height:46px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  color:var(--accent); background:var(--glass-sheen), var(--glass-strong); border:1px solid var(--glass-line);
+  -webkit-backdrop-filter:var(--glass-blur); backdrop-filter:var(--glass-blur); box-shadow:var(--glass-hi), var(--shadow);
+  transition:transform .18s var(--ease-pop), border-color .18s var(--ease-quick); }
+.ch-logo svg{ width:26px; height:26px; display:block; }
+.cosmo-handle:hover .ch-logo, .cosmo-handle:focus-visible .ch-logo{ transform:scale(1.07); border-color:var(--accent); }
+.cosmo-handle:active .ch-logo{ transform:scale(0.94); }
+/* while Cosmo is working, the logo breathes */
+.cosmo-handle.busy .ch-logo{ animation:ch-busy 1.6s ease-in-out infinite; border-color:var(--accent); }
+@keyframes ch-busy{ 0%,100%{ box-shadow:var(--glass-hi), var(--shadow), 0 0 0 0 var(--accent-soft); }
+  50%{ box-shadow:var(--glass-hi), var(--shadow), 0 0 0 8px var(--accent-soft); } }
+@media (prefers-reduced-motion: reduce){ .cosmo-handle.busy .ch-logo{ animation:none; box-shadow:var(--glass-hi), var(--shadow), 0 0 0 5px var(--accent-soft); } }
+@media (max-width: 560px){
+  .cosmo-handle{ left:max(6px, env(safe-area-inset-left, 0px)); }
+}
+
+/* ===================== TOUR: guided turns, hints, auto-advance ===================== */
+/* a guided turn: no blur, a brighter breathing ring, and a label pointing at the one button to press */
+#tour-spot.guide{ border-width:3px; animation:guide-pulse 1.3s ease-in-out infinite; }
+#tour-spot2{ position:fixed; left:0; top:0; z-index:160; pointer-events:none; border:3px solid var(--accent); border-radius:18px;
+  animation:guide-pulse 1.3s ease-in-out infinite; }
+#tour-spot2.round{ border-radius:50%; }
+#tour-spot2[hidden]{ display:none !important; }
+@keyframes guide-pulse{
+  0%,100%{ box-shadow:0 0 0 3px var(--accent-soft), 0 0 14px 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+  50%{ box-shadow:0 0 0 9px var(--accent-soft), 0 0 26px 6px color-mix(in srgb, var(--accent) 45%, transparent); }
+}
+.tour-tag{ position:fixed; left:0; top:0; z-index:166; pointer-events:none; transition:opacity .2s ease; }
+.tour-tag[hidden]{ display:none !important; }
+.tour-tag span{ position:relative; display:block; white-space:nowrap; padding:7px 13px; border-radius:999px;
+  background:var(--accent); color:var(--on-accent, #fff); font:650 0.8rem/1.2 var(--font-ui);
+  box-shadow:0 6px 18px -6px color-mix(in srgb, var(--accent) 70%, transparent), var(--shadow);
+  animation:tag-bob 1.3s ease-in-out infinite; }
+.tour-tag span::after{ content:''; position:absolute; left:calc(50% + var(--arrow, 0px)); bottom:-5px; width:10px; height:10px; margin-left:-5px;
+  background:var(--accent); transform:rotate(45deg); border-radius:2px; }
+.tour-tag.below span::after{ bottom:auto; top:-5px; }
+@keyframes tag-bob{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-4px); } }
+.tour-tag.below span{ animation-name:tag-bob-below; }
+@keyframes tag-bob-below{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(4px); } }
+
+/* hand hints: a ghost cursor that loops the gesture */
+#tour-hint{ position:fixed; inset:0; z-index:165; pointer-events:none; transition:opacity .2s ease; }
+#tour-hint[hidden]{ display:none !important; }
+#tour-hint .th-path{ position:absolute; inset:0; overflow:visible; }
+#tour-hint #th-line{ stroke:var(--accent); stroke-width:2.5; stroke-dasharray:7 9; stroke-linecap:round; opacity:0;
+  animation:th-dash 1s linear infinite; }
+#tour-hint.hint-drag #th-line{ opacity:0.75; }
+@keyframes th-dash{ to{ stroke-dashoffset:-32; } }
+.th-ghost{ position:absolute; left:var(--ax); top:var(--ay); width:0; height:0; }
+.th-move{ position:absolute; left:0; top:0; width:0; height:0; }
+.th-cursor{ position:absolute; left:-3px; top:-2px; width:24px; height:30px; filter:drop-shadow(0 2px 3px rgba(0,0,0,0.35)); }
+.th-bubble{ position:absolute; left:-22px; top:-22px; width:44px; height:44px; border-radius:50%; opacity:0;
+  border:2px dashed var(--accent); background:var(--accent-soft); }
+.hint-drag .th-bubble{ opacity:1; }
+.th-label{ position:absolute; left:0; top:calc(var(--ar, 30px) + 12px); transform:translateX(-50%); white-space:nowrap; padding:5px 10px; border-radius:999px;
+  background:var(--glass-sheen), var(--glass-strong); border:1px solid var(--glass-line); color:var(--text);
+  font:650 0.76rem/1.2 var(--font-ui); box-shadow:var(--shadow);
+  -webkit-backdrop-filter:var(--glass-blur); backdrop-filter:var(--glass-blur); }
+.hint-shake .th-move{ animation:th-shake 2.4s ease-in-out infinite; }
+.hint-drag .th-move{ animation:th-drag 2.8s cubic-bezier(.45,.05,.35,1) infinite; }
+@keyframes th-shake{
+  0%{ transform:translate(0,0) scale(1); opacity:0; }
+  8%{ opacity:1; }
+  16%{ transform:translate(0,0) scale(0.86); }
+  25%{ transform:translate(-26px,0) scale(0.86); } 33%{ transform:translate(26px,0) scale(0.86); }
+  41%{ transform:translate(-26px,0) scale(0.86); } 49%{ transform:translate(26px,0) scale(0.86); }
+  57%{ transform:translate(-26px,0) scale(0.86); } 65%{ transform:translate(26px,0) scale(0.86); }
+  74%{ transform:translate(0,0) scale(1); opacity:1; }
+  100%{ transform:translate(0,0) scale(1); opacity:0; }
+}
+@keyframes th-drag{
+  0%{ transform:translate(0,0) scale(1); opacity:0; }
+  10%{ transform:translate(0,0) scale(1); opacity:1; }
+  20%{ transform:translate(0,0) scale(0.88); }
+  70%{ transform:translate(var(--dx), var(--dy)) scale(0.88); }
+  80%{ transform:translate(var(--dx), var(--dy)) scale(1); opacity:1; }
+  100%{ transform:translate(var(--dx), var(--dy)) scale(1); opacity:0; }
+}
+@media (prefers-reduced-motion: reduce){
+  .hint-shake .th-move, .hint-drag .th-move, .tour-tag span, #tour-hint #th-line{ animation:none; }
+  .hint-drag .th-move{ transform:translate(var(--dx), var(--dy)); }
+  #tour-spot.guide, #tour-spot2{ animation:none; box-shadow:0 0 0 6px var(--accent-soft); }
+}
+
+/* the tour moves on by itself: Next fills up as it counts down */
+#tc-next{ position:relative; overflow:hidden; }
+#tc-next.auto::before{ content:''; position:absolute; inset:0; background:rgba(255,255,255,0.3); transform-origin:left center;
+  animation:tc-fill var(--auto, 2800ms) linear forwards; pointer-events:none; }
+@keyframes tc-fill{ from{ transform:scaleX(0); } to{ transform:scaleX(1); } }
+#tc-back[hidden]{ display:none !important; }
+#tc-back{ padding:7px 10px; }

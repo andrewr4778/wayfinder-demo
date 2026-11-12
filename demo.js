@@ -356,10 +356,18 @@ async function demoAct(text, tools){
    and "Next (mid-step)" fast-forwards the rest of the step so later steps still
    find what they expect. Once a step is done, "Show again" replays it as
    a demo. Rewinding works because the demo store is in memory: the whole
-   hub is snapshotted before a step and put back before every replay. */
+   hub is snapshotted before a step and put back before every replay.
+
+   The visitor never has to press Next: when a step finishes, the next one
+   starts by itself after a short countdown (Next just skips the wait).
+   Back returns to the previous step, putting the hub back how it was. Some
+   turns are "guided": nothing blurs, only the one button can be pressed,
+   and a label points at it. Hand gestures (shake, drag) get a small looping
+   animation that shows the movement. */
 const tour = { on:false, token:0, stepTok:0, name:'', choice:null, replaying:false, skipReplay:false,
-               fast:false, pressing:null };
-const TOUR_STEPS = 12;
+               fast:false, pressing:null, back:false, idx:0 };
+const TOUR_STEPS = 13;
+const AUTO_NEXT = 2800;                 // real ms a finished step waits before the next one starts
 const PACE = 1.7;                       // everything below runs this much slower than real time
 class TourStop extends Error{}
 class StepSkip extends Error{}
@@ -367,6 +375,7 @@ const q = s => document.querySelector(s);
 const sleepers = new Set();
 
 function tsleep(ms){
+  if(tour.back) return Promise.reject(new StepSkip());     // Back was pressed: unwind this step now
   const tk = tour.token, sk = tour.stepTok;
   const wait = tour.fast ? 0 : REDUCED ? Math.min(ms, 120) : ms * PACE;
   return new Promise((res, rej) => {
@@ -375,7 +384,7 @@ function tsleep(ms){
     entry.fire = () => {
       sleepers.delete(entry);
       if(!tour.on || tk !== tour.token) rej(new TourStop());
-      else if(sk !== tour.stepTok) rej(new StepSkip());
+      else if(sk !== tour.stepTok || tour.back) rej(new StepSkip());
       else res();
     };
     entry.timer = setTimeout(entry.fire, wait);
@@ -436,6 +445,17 @@ async function tap(target, action){
   else { const el = resolveEl(target); if(el) el.click(); }
   await tsleep(380);
 }
+/* the same click as tap(), at twice the speed */
+async function tapQuick(target, action){
+  await moveTo(target, 300);
+  await tsleep(110);
+  const c = q('#tour-cursor');
+  c.classList.remove('tap'); void c.offsetWidth; c.classList.add('tap');
+  await tsleep(85);
+  if(action) await action();
+  else { const el = resolveEl(target); if(el) el.click(); }
+  await tsleep(190);
+}
 async function typeInto(target, text, speed){
   const el = resolveEl(target);
   if(!el) return;
@@ -472,11 +492,25 @@ async function press(target, opts){
   if(tour.fast || tour.replaying || !resolveEl(target)) return tap(target, opts.action);
   await ensureVisible(resolveEl(target));
   spot(opts.area || target, { round: !!opts.round, pad: opts.pad == null ? 6 : opts.pad });
-  await blurPause();
+  if(!opts.quick) await blurPause();
   if(tour.fast) return tap(target, opts.action);     // Next was pressed during the pause
   const how = await handOver(opts.area || target, opts, opts.label || 'Your turn: click it', () => waitPress(target, opts.check));
   if(how === 'user') await beat(380);
   else await tap(target, opts.action);     // Show me, or Next (mid-step)
+}
+/* A turn with two choices: either a or b will do (each { target, tag, round, pad, action }).
+   Returns 0 or 1 for the one that was pressed; Show me presses the first. */
+async function pressEither(a, b, label, check){
+  if(tour.fast || tour.replaying){ await tap(a.target, a.action); return 0; }
+  spot(a.target, { round: !!a.round, pad: a.pad });
+  await tsleep(300);
+  if(tour.fast){ await tap(a.target, a.action); return 0; }
+  tour.pressedIdx = 0;
+  const how = await handOver(a.target, { guide: !!a.guide, tag:a.tag, round: !!a.round, pad: a.pad, extra: b }, label,
+    () => waitPress([a.target, b.target], check));
+  if(how === 'user') return tour.pressedIdx || 0;
+  await tap(a.target, a.action);
+  return 0;
 }
 /* A freer turn: light up an area (the map), let the visitor do something
    there (draw, erase, shake a bubble loose), and move on once done() says
@@ -505,15 +539,41 @@ async function handOver(target, opts, label, wait){
   const prev = { t: spotTarget, o: spotOpts };
   spot(target, { round: !!opts.round, pad: opts.pad == null ? 6 : opts.pad });
   q('#tour-cursor').hidden = true;
-  q('#tour-block').hidden = true;
-  q('#tour-shade').hidden = false;
+  const block = q('#tour-block');
+  if(opts.guide){
+    // guided: nothing blurs; the click-blocker stays up with a hole over the one
+    // button, the ring glows, and a label says exactly what to press
+    block.hidden = false;
+    block.classList.add('holed');
+    q('#tour-spot').classList.add('guide');
+    q('#tour-tag-text').textContent = opts.tag || label;
+    q('#tour-tag').hidden = false;
+  } else {
+    block.hidden = true;
+    q('#tour-shade').hidden = false;
+    if(opts.tag){ q('#tour-tag-text').textContent = opts.tag; q('#tour-tag').hidden = false; }   // the label sits above the blur
+  }
+  if(opts.extra){
+    extraSpot = opts.extra;
+    q('#tour-tag2-text').textContent = opts.extra.tag || '';
+    q('#tour-tag2').hidden = !opts.extra.tag;
+  }
+  if(opts.hint) startHint(opts.hint);
   spotFrame();          // cut the hole now, not on the next frame, so an instant click still lands
   cardMode('press', null, label);
   try{
     return await wait();
   }finally{
     q('#tour-shade').hidden = true;
-    q('#tour-block').hidden = !tour.on;
+    block.classList.remove('holed');
+    block.style.clipPath = '';
+    block.hidden = !tour.on;
+    q('#tour-spot').classList.remove('guide');
+    q('#tour-tag').hidden = true;
+    extraSpot = null;
+    q('#tour-spot2').hidden = true;
+    q('#tour-tag2').hidden = true;
+    stopHint();
     if(tour.on){ cardMode('watch'); spot(prev.t, prev.o); }
   }
 }
@@ -530,13 +590,15 @@ function waitUntil(done){
   });
 }
 function waitPress(target, check){
+  const targets = Array.isArray(target) ? target : [target];
   return new Promise((res, rej) => {
     let armed = false;
-    const inside = e => { const el = resolveEl(target); return !!(el && e.target instanceof Node && el.contains(e.target)); };
+    const which = e => targets.findIndex(t => { const el = resolveEl(t); return !!(el && e.target instanceof Node && el.contains(e.target)); });
+    const inside = e => which(e) >= 0;
     const settle = () => setTimeout(() => { if(tour.pressing === entry && (!check || check())) done('user'); }, 40);
-    const down = e => { armed = inside(e); };
+    const down = e => { armed = inside(e); if(armed) tour.pressedIdx = which(e); };
     const up = () => { if(armed){ armed = false; settle(); } };
-    const key = e => { if(e.detail === 0 && inside(e)) settle(); };   // keyboard activation
+    const key = e => { if(e.detail === 0 && inside(e)){ tour.pressedIdx = which(e); settle(); } };   // keyboard activation
     function done(how, err){
       window.removeEventListener('pointerdown', down, true);
       window.removeEventListener('pointerup', up, true);
@@ -565,11 +627,39 @@ function spotLoop(){
   spotRaf = requestAnimationFrame(spotLoop);
   spotFrame();
 }
+/* a rounded-rectangle (or circle) hole around a box, as one sub-path */
+function holeOf(r, pad, round){
+  const x = r.left - pad, y = r.top - pad, w = r.width + pad * 2, h = r.height + pad * 2;
+  const k = Math.min(round ? Math.min(w, h) / 2 : 18, w / 2, h / 2);
+  return 'M' + (x + k) + ' ' + y + 'H' + (x + w - k) + 'A' + k + ' ' + k + ' 0 0 1 ' + (x + w) + ' ' + (y + k) +
+    'V' + (y + h - k) + 'A' + k + ' ' + k + ' 0 0 1 ' + (x + w - k) + ' ' + (y + h) +
+    'H' + (x + k) + 'A' + k + ' ' + k + ' 0 0 1 ' + x + ' ' + (y + h - k) +
+    'V' + (y + k) + 'A' + k + ' ' + k + ' 0 0 1 ' + (x + k) + ' ' + y + 'Z';
+}
+/* a label above a box (or below it when there is no room), kept on screen, its arrow on the box */
+function placeTag(tag, r, pad){
+  const below = r.top - pad < 64;
+  tag.classList.toggle('below', below);
+  tag.style.opacity = '1';
+  const cx = r.left + r.width / 2, half = tag.offsetWidth / 2;
+  const tx = Math.min(Math.max(cx, half + 8), innerWidth - half - 8);
+  tag.style.setProperty('--arrow', (cx - tx) + 'px');
+  tag.style.transform = 'translate(' + tx + 'px,' + (below ? r.bottom + pad + 12 : r.top - pad - 12) + 'px) translate(-50%,' + (below ? '0' : '-100%') + ')';
+}
+/* the second thing that may be pressed, on a turn with two choices */
+let extraSpot = null;
 /* place the ring, and cut the blur's hole, around whatever is lit right now */
 function spotFrame(){
   const s = q('#tour-spot'), card = q('#tour-card'), shade = q('#tour-shade');
   const el = resolveEl(spotTarget);
-  if(!el || !el.getClientRects().length){ s.style.opacity = '0'; shade.style.clipPath = 'none'; return; }
+  hintFrame();
+  const block = q('#tour-block'), tag = q('#tour-tag');
+  if(!el || !el.getClientRects().length){
+    s.style.opacity = '0'; shade.style.clipPath = 'none';
+    if(block.classList.contains('holed')) block.style.clipPath = 'none';
+    tag.style.opacity = '0';
+    return;
+  }
   const r = el.getBoundingClientRect();
   const pad = spotOpts.pad == null ? 8 : spotOpts.pad;
   s.hidden = false;
@@ -577,21 +667,75 @@ function spotFrame(){
   s.style.transform = 'translate(' + (r.left - pad) + 'px,' + (r.top - pad) + 'px)';
   s.style.width = (r.width + pad * 2) + 'px';
   s.style.height = (r.height + pad * 2) + 'px';
-  if(!shade.hidden){
-    // the blur covers the whole screen except a hole the shape of the ring,
-    // and clicks pass through that hole to the real button underneath
-    const x = r.left - pad, y = r.top - pad, w = r.width + pad * 2, h = r.height + pad * 2;
-    const k = Math.min(spotOpts.round ? Math.min(w, h) / 2 : 18, w / 2, h / 2);
-    const W = innerWidth, H = innerHeight;
-    shade.style.clipPath = 'path(evenodd, "M0 0H' + W + 'V' + H + 'H0Z' +
-      'M' + (x + k) + ' ' + y + 'H' + (x + w - k) + 'A' + k + ' ' + k + ' 0 0 1 ' + (x + w) + ' ' + (y + k) +
-      'V' + (y + h - k) + 'A' + k + ' ' + k + ' 0 0 1 ' + (x + w - k) + ' ' + (y + h) +
-      'H' + (x + k) + 'A' + k + ' ' + k + ' 0 0 1 ' + x + ' ' + (y + h - k) +
-      'V' + (y + k) + 'A' + k + ' ' + k + ' 0 0 1 ' + (x + k) + ' ' + y + 'Z")';
+  let holes = holeOf(r, pad, !!spotOpts.round);
+  // a second choice gets its own ring, label and hole
+  const s2 = q('#tour-spot2'), tag2 = q('#tour-tag2');
+  const el2 = extraSpot ? resolveEl(extraSpot.target) : null;
+  if(el2 && el2.getClientRects().length){
+    const r2 = el2.getBoundingClientRect(), pad2 = extraSpot.pad == null ? 8 : extraSpot.pad;
+    s2.hidden = false;
+    s2.classList.toggle('round', !!extraSpot.round);
+    s2.style.transform = 'translate(' + (r2.left - pad2) + 'px,' + (r2.top - pad2) + 'px)';
+    s2.style.width = (r2.width + pad2 * 2) + 'px';
+    s2.style.height = (r2.height + pad2 * 2) + 'px';
+    holes += holeOf(r2, pad2, !!extraSpot.round);
+    if(!tag2.hidden) placeTag(tag2, r2, pad2);
+  } else s2.hidden = true;
+  const holed = block.classList.contains('holed');
+  if(!shade.hidden || holed){
+    // the blur (or, on a guided turn, the invisible click-blocker) covers the
+    // whole screen except a hole the shape of each ring, and clicks pass
+    // through a hole to the real button underneath
+    const hole = 'path(evenodd, "M0 0H' + innerWidth + 'V' + innerHeight + 'H0Z' + holes + '")';
+    if(!shade.hidden) shade.style.clipPath = hole;
+    if(holed) block.style.clipPath = hole;
   }
+  if(!tag.hidden) placeTag(tag, r, pad);
   // on a narrow screen the caption gets out of the way of whatever is lit
   if(innerWidth < 760) card.classList.toggle('at-top', (r.top + r.height / 2) > innerHeight * 0.5 && r.height < innerHeight * 0.7);
   else card.classList.remove('at-top');
+}
+
+/* ---- pointing: a label on something the tour itself is about to use ----
+   Same label as a guided turn, but nothing waits for the visitor. */
+function pointAt(target, text, opts){
+  spot(target, opts);
+  q('#tour-tag-text').textContent = text;
+  q('#tour-tag').hidden = false;
+  spotFrame();
+}
+function unpoint(){ q('#tour-tag').hidden = true; }
+
+/* ---- hand hints: a ghost cursor loops the gesture the visitor should make ----
+   kind 'shake': press and hold on a bubble, then shake left and right.
+   kind 'drag':  press on one bubble, carry it onto another, let go. */
+let hint = null;
+function startHint(h){
+  hint = h;
+  const el = q('#tour-hint');
+  el.className = 'hint-' + h.kind;
+  q('#th-label').textContent = h.label || '';
+  el.hidden = false;
+  hintFrame();
+}
+function stopHint(){ hint = null; q('#tour-hint').hidden = true; }
+function hintFrame(){
+  if(!hint) return;
+  const el = q('#tour-hint');
+  const a = resolveEl(hint.from), b = hint.to ? resolveEl(hint.to) : null;
+  if(!a || !a.getClientRects().length){ el.style.opacity = '0'; return; }
+  const ra = a.getBoundingClientRect(), ax = ra.left + ra.width / 2, ay = ra.top + ra.height / 2;
+  el.style.opacity = '1';
+  el.style.setProperty('--ax', ax + 'px');
+  el.style.setProperty('--ay', ay + 'px');
+  el.style.setProperty('--ar', (ra.height / 2) + 'px');      // the label sits just below the bubble
+  if(b){
+    const rb = b.getBoundingClientRect(), bx = rb.left + rb.width / 2, by = rb.top + rb.height / 2;
+    el.style.setProperty('--dx', (bx - ax) + 'px');
+    el.style.setProperty('--dy', (by - ay) + 'px');
+    const ln = q('#th-line');
+    ln.setAttribute('x1', ax); ln.setAttribute('y1', ay); ln.setAttribute('x2', bx); ln.setAttribute('y2', by);
+  }
 }
 
 /* ---- caption ---- */
@@ -614,6 +758,7 @@ function say(n, title, body){
    'idle'   = step done; Show again or Next */
 let lastNextLabel = 'Next';
 function cardMode(mode, nextLabel, turnLabel){
+  q('#tc-back').hidden = !tour.on || tour.idx === 0;
   const wait = q('#tc-wait');
   wait.hidden = mode === 'idle';
   wait.classList.toggle('your-turn', mode === 'press');
@@ -629,10 +774,20 @@ function cardMode(mode, nextLabel, turnLabel){
   next.classList.add('btn-primary');
   if(mode === 'idle'){ try{ next.focus({ preventScroll:true }); }catch(e){} }
 }
-function waitChoice(){
-  const tk = tour.token;
+function waitChoice(autoMs){
+  const tk = tour.token, next = q('#tc-next');
+  let timer = 0;
+  if(autoMs){
+    // the Next button fills up while it counts down, then the tour carries on by itself
+    next.style.setProperty('--auto', autoMs + 'ms');
+    next.classList.remove('auto'); void next.offsetWidth; next.classList.add('auto');
+    timer = setTimeout(() => { if(tour.choice) tour.choice('next'); }, autoMs);
+  }
   return new Promise((res, rej) => {
-    tour.choice = c => { tour.choice = null; tk === tour.token ? res(c) : rej(new TourStop()); };
+    tour.choice = c => {
+      tour.choice = null; clearTimeout(timer); next.classList.remove('auto');
+      tk === tour.token ? res(c) : rej(new TourStop());
+    };
   });
 }
 function tourNext(){
@@ -651,6 +806,15 @@ function tourAgain(){
   if(tour.pressing) tour.pressing.done('show');
 }
 function cancelStep(){ tour.stepTok++; wakeSleepers(new StepSkip()); }
+/* Back: drop whatever this step is doing and return to the one before it */
+function tourBack(){
+  if(!tour.on || tour.idx === 0) return;
+  tour.back = true;
+  if(tour.choice){ tour.choice('back'); return; }
+  tour.stepTok++;
+  wakeSleepers(new StepSkip());
+  if(tour.pressing){ const p = tour.pressing; tour.pressing = null; p.done(null, new StepSkip()); }
+}
 
 /* ---- rewinding ---- */
 function snapshot(){
@@ -665,6 +829,7 @@ function closeAllUi(){
   if(document.getElementById('modal').classList.contains('open')) closeModal();
   ['tasks-sheet', 'imp-sheet', 'trash-sheet', 'settings-sheet'].forEach(closeSheet);
   closeHelper();
+  toggleSectionNav(false);
   setHubMode('move');
   document.getElementById('toast').classList.remove('show');
   document.getElementById('activity').hidden = true;
@@ -712,62 +877,69 @@ const STEPS = [
     async play(){
       if(view !== 'hub') goHub();
       await fitView();
-      say(1, 'Meet Cosmo', 'The bubble in the middle is Cosmo, your assistant. It can see your whole hub and change it for you.');
-      spot('#bubble-center', { round:true, pad:10 });
-      await beat(1300);
-      await press('#bubble-center', { action: () => openHelper(), round:true, pad:10 });
-      await beat(420);
+      say(1, 'Meet Cosmo', 'Cosmo is your assistant. It can see your whole hub and change it for you. Open it either way: the bubble in the middle or the logo on the left edge.');
+      const ways = [
+        { target:'#bubble-center', tag:'Way 1: the middle bubble', round:true, pad:10, action: () => openHelper() },
+        { target:'#cosmo-handle',  tag:'Way 2: the logo',          round:true, pad:8,  action: () => openHelper() },
+      ];
+      await pressEither(ways[0], ways[1], 'Your turn: open Cosmo either way',
+        () => q('#helper-sheet').classList.contains('open'));
+      await tsleep(350);
       spot('#helper-sheet .sheet-card', { pad:-3 });
-      say(1, 'Meet Cosmo', 'This is Cosmo. Ask a question or tell it what to add, and it does the work. You will try it in a few steps, so close it with the X for now.');
-      await press('#helper-sheet .sheet-head .icon-btn', { area:'#helper-sheet .sheet-card', pad:-3, label:'Your turn: close Cosmo' });
-      await beat(350);
+      say(1, 'Meet Cosmo', 'This is Cosmo. You ask a question or say what you want added, and it does the work. You will see it in action later.');
+      await tsleep(2000 / PACE);                   // two real seconds on Cosmo
+      say(1, 'Meet Cosmo', 'Press the X to close Cosmo.');
+      await press('#helper-sheet .sheet-head .icon-btn', { pad:6, guide:true, tag:'Press X to close', label:'Your turn: press X to close' });
+      await tsleep(300);
       say(1, 'Your to-dos', 'Every to-do and reminder from every part of your life lives behind the checklist up top. The number shows what is due right now.');
       spot('#todo-btn', { round:true, pad:6 });
-      await beat(1100);
-      await press('#todo-btn', { round:true });
-      await tsleep(420);
+      await beat(500);
+      await press('#todo-btn', { round:true, quick:true, tag:'Press the checklist', label:'Your turn: open your to-dos' });
+      await tsleep(220);
       spot('#tasks-sheet .sheet-card', { pad:-3 });
-      say(1, 'Your to-dos', 'Sorted into Overdue, Today and Upcoming. Each to-do is tagged with the bubble it belongs to.');
-      await tsleep(1800);
+      say(1, 'Your to-dos', 'Sorted into Overdue, Today and Upcoming, each tagged with its bubble. Press the X to close it.');
+      await tsleep(700);
+      await press('#tasks-sheet .sheet-head .icon-btn', { pad:6, guide:true, tag:'Press X to close', label:'Your turn: press X to close' });
+      await tsleep(120);
     },
+    autoNext: 1400,                    // half the usual wait: straight on to adding a section
     after(){ closeHelper(); closeSheet('tasks-sheet'); },
   },
   {
     async play(){
-      say(2, 'Add a bubble', 'Every bubble around the middle is one part of your life. Making a new one takes a name and a colour.');
+      say(2, 'Add a bubble', 'Every bubble around the middle is one part of your life. Press + Section to make a new one; the name and colour get filled in for you.');
       spot('#add-bubble-btn', { pad:6 });
-      await beat(1100);
-      await press('#add-bubble-btn');
-      await beat(320);
+      await tsleep(350);
+      await press('#add-bubble-btn', { pad:6, quick:true, tag:'Press + Section', label:'Your turn: press + Section',
+        check: () => !!q('#nb-name') });
+      await tsleep(320);
       spot('#modal-card', { pad:4 });
       await typeInto('#nb-name', 'Gym');
-      await press('#tone-picker [data-tone="green"]', { round:true, pad:4 });
-      await beat(250);
-      await press('#modal-card .btn-primary');
-      await tsleep(520);
+      await tap('#tone-picker [data-tone="green"]');
+      await tsleep(300);
+      say(2, 'Add a bubble', 'Gym is ready to go. Press Create section to add it to your map.');
+      await press('#modal-card .btn-primary', { pad:6, guide:true, tag:'Press Create section', label:'Your turn: press Create section' });
+      await tsleep(260);
       spot('#sec-title-wrap', { pad:8 });
       say(2, 'Add a bubble', 'Gym is now on the map, and Wayfinder opens it straight away so you can fill it in.');
-      await tsleep(1500);
+      await tsleep(650);
     },
+    autoNext: 1200,                    // half the usual wait: straight on to adding a panel
   },
   {
     async play(){
-      say(3, 'Add panels', 'A bubble is a grid of panels. There are ten kinds: checklists, notes, numbers with targets, tables, dates, progress bars, habit streaks, links, sticky notes and a job-application tracker.');
+      say(3, 'Add panels', 'A bubble is a grid of panels. There are ten kinds: checklists, notes, numbers with targets, tables, dates, progress bars, habit streaks, links, sticky notes and a job-application tracker. Press + Add panel to add one.');
       spot('.add-widget', { pad:6 });
-      await beat(1500);
-      await press('.add-widget');
-      await tsleep(320);
+      await tsleep(300);
+      await press('.add-widget', { pad:6, quick:true, tag:'Press + Add panel', label:'Your turn: press + Add panel',
+        check: () => !!q('#aw-type') });
+      await tsleep(160);
       spot('#modal-card', { pad:4 });
-      await typeInto('#aw-title', 'Daily habits');
-      // whatever kind gets picked, the name follows it, so the visitor never has to type one
-      const kindSel = q('#aw-type');
-      if(kindSel) kindSel.addEventListener('change', () => {
-        const t = q('#aw-title');
-        if(t) t.value = kindSel.value === 'habit' ? 'Daily habits' : WIDGET_KINDS[kindSel.value].label;
-      });
-      say(3, 'Add panels', 'Pick the kind of panel you want from the Type list, then click Add panel. Habit streak is a fun one to try.');
+      await tapQuick('#aw-type', () => { const k = q('#aw-type'); if(k) k.value = 'habit'; });
+      await typeInto('#aw-title', 'Daily habits', 28);
+      say(3, 'Add panels', 'A habit tracker is picked and named for you. Press Add panel to put it in Gym.');
       await press('#modal-card .btn-primary', {
-        area:'#modal-card', pad:4, label:'Your turn: pick a type, then Add panel',
+        pad:6, guide:true, quick:true, tag:'Press Add panel', label:'Your turn: press Add panel',
         action: () => { q('#aw-type').value = 'habit'; q('#aw-title').value = 'Daily habits'; submitAddWidget(); },
       });
       await tsleep(450);
@@ -789,8 +961,8 @@ const STEPS = [
         await tap(day(1, 6));
       }
       say(3, 'Add panels', (kind === 'habit' ? '' : 'Your panel is in. Type straight into it to fill it, and everything saves as you go. ') +
-        'Panels come in sizes too. Click the resize button in its corner.');
-      await press(() => { const p = panel() || newPanel(); return p ? p.querySelector('[title="Resize"]') : null; });
+        'Panels come in sizes too: the resize button in the corner makes one bigger.');
+      await tap(() => { const p = panel() || newPanel(); return p ? p.querySelector('[title="Resize"]') : null; });
       await tsleep(300);
       say(3, 'Add panels', 'Every panel can be resized, renamed or removed from the buttons in its corner.');
       await tsleep(1500);
@@ -840,8 +1012,10 @@ const STEPS = [
       await press('#trash-btn', { round:true });
       await tsleep(420);
       spot('#trash-sheet .sheet-card', { pad:-3 });
-      say(5, 'Delete a bubble', 'Anything in here can be restored with one click, panels and all.');
-      await tsleep(1500);
+      say(5, 'Delete a bubble', 'Anything in here can be restored with one click, panels and all. Press the X to close it and carry on.');
+      await tsleep(1200);
+      await press('#trash-sheet .sheet-head .icon-btn', { pad:6, guide:true, tag:'Press X to close', label:'Your turn: press X to close' });
+      await tsleep(300);
     },
     after(){ closeSheet('trash-sheet'); },
   },
@@ -849,17 +1023,18 @@ const STEPS = [
     async play(){
       say(6, 'Sub-sections', 'Bubbles can branch off other bubbles, so a big area like School can split into one bubble per class.');
       spot('#add-bubble-btn', { pad:6 });
-      await beat(1000);
-      await press('#add-bubble-btn');
+      await tsleep(700);
+      await press('#add-bubble-btn', { pad:6, tag:'Press + Section', label:'Your turn: press + Section',
+        check: () => !!q('#nb-name') });
       await tsleep(320);
       spot('#modal-card', { pad:4 });
       await typeInto('#nb-name', 'Chemistry');
       await tap('#nb-parent', () => { q('#nb-parent').value = idNamed('School'); parentChanged(); });
       await tsleep(400);
       await tap('#tone-picker [data-tone="violet"]');
-      await beat(250);
-      say(6, 'Sub-sections', 'Chemistry is set to sit under School. Click Create.');
-      await press('#modal-card .btn-primary');
+      await tsleep(300);
+      say(6, 'Sub-sections', 'Chemistry is set to sit under School. Press Create section.');
+      await press('#modal-card .btn-primary', { pad:6, guide:true, tag:'Press Create section', label:'Your turn: press Create section' });
       await beat(500);
       await backToHub();
       spot(bubbleNamed('Chemistry'), { round:true, pad:12 });
@@ -875,6 +1050,7 @@ const STEPS = [
       await beat(1300);
       await yourTurn('#hub-canvas', {
         pad:-2, label:'Your turn: shake Chemistry',
+        hint: { kind:'shake', from: bubbleNamed('Chemistry'), label:'Press, hold and shake' },
         done: () => { const b = bubbleById(idNamed('Chemistry')); return !!b && !b.parentId && draggingId === null; },
         demo: () => shakeLoose('Chemistry'),
       });
@@ -884,6 +1060,7 @@ const STEPS = [
       await beat(1400);
       await yourTurn('#hub-canvas', {
         pad:-2, label:'Your turn: drop Chemistry on School',
+        hint: { kind:'drag', from: bubbleNamed('Chemistry'), to: bubbleNamed('School'), label:'Drag onto School' },
         done: () => { const b = bubbleById(idNamed('Chemistry')); return !!b && b.parentId === idNamed('School') && draggingId === null; },
         demo: () => dragOnto('Chemistry', 'School'),
       });
@@ -915,7 +1092,7 @@ const STEPS = [
   },
   {
     async play(){
-      // this step plays by itself: the visitor just watches Cosmo work
+      // Cosmo is asked to make a section; three seconds later the visitor closes it
       say(9, 'Ask Cosmo', 'Watch Cosmo at work. You tell it what you need in plain words, and it does the rest.');
       await backToHub();
       spot('#bubble-center', { round:true, pad:10 });
@@ -923,22 +1100,19 @@ const STEPS = [
       await tap('#bubble-center', () => openHelper());
       await tsleep(420);
       spot('#helper-sheet .sheet-foot', { pad:-3 });
-      await typeInto('#chat-input', 'Add chemistry homework due Friday', 50);
+      await typeInto('#chat-input', 'Make a section for Travel', 50);
       await tsleep(250);
       await tap('#send-btn');
       spot('#chat-body', { pad:-3 });
-      say(9, 'Ask Cosmo', 'It reads the hub, works out the date, matches "chemistry" to the Chemistry bubble and adds the to-do.');
+      say(9, 'Ask Cosmo', 'Cosmo reads your hub and creates a Travel section for you.');
+      await tsleep(3000 / PACE);               // three real seconds after asking
+      say(9, 'Ask Cosmo', 'Done. Press the X to exit Cosmo and see your new section on the map.');
+      await press('#helper-sheet .sheet-head .icon-btn', { pad:6, guide:true, tag:'Press X to exit', label:'Your turn: press X to exit' });
       if(demoRun) await demoRun;
-      await tsleep(1600);
-      await tap('#helper-sheet .sheet-head .icon-btn', () => closeHelper());
       await tsleep(300);
-      spot(bubbleNamed('Chemistry'), { round:true, pad:10 });
-      await tap(bubbleNamed('Chemistry'), () => openSection(idNamed('Chemistry')));
-      await tsleep(600);
-      spot(() => { const w = document.querySelectorAll('#widget-grid .widget'); return w[1] || w[0]; }, { pad:6 });
-      const t = state.tasks.find(x => /chemistry homework/i.test(x.text));
-      say(9, 'Ask Cosmo', 'Open Chemistry and the homework is already there' + (t && t.due ? ', due ' + whenLabel(t.due) : '') +
-        '. In the full app Cosmo runs on Claude, so it can also lay out a whole bubble from one sentence.');
+      { const glide = fitView(); if(tour.replaying || tour.fast) await glide; else await tsleep(500); }
+      spot(bubbleNamed('Travel'), { round:true, pad:12 });
+      say(9, 'Ask Cosmo', 'Travel is on the map, made from one sentence. In the full app Cosmo runs on Claude, so it can also lay out every panel inside it.');
       await tsleep(1800);
     },
   },
@@ -985,20 +1159,24 @@ const STEPS = [
       await beat(1000);
       await press('#settings-btn', { round:true });
       await beat(420);
-      spot('#theme-grid', { pad:8 });
-      say(11, 'Make it yours', 'Try one: click any theme and the whole hub repaints on the spot.');
       const themeCard = id => () => q('#theme-grid [onclick="setTheme(\'' + id + '\')"]');
-      await yourTurn('#theme-grid', {
-        pad:8, label:'Your turn: pick a theme',
-        done: () => look.theme !== DEFAULT_THEME,
-        demo: () => tap(themeCard('forest')),
-      });
-      await tsleep(900);
-      // a quick taste only: the tour always carries on in the default look
-      say(11, 'Make it yours', 'That is all it takes. Back to the default for the rest of the tour. You can change it any time from here.');
-      await tsleep(900);
+      say(11, 'Make it yours', 'Try Slate: press it and the whole hub repaints on the spot.');
+      await press(themeCard('slate'), { pad:6, guide:true, tag:'Press Slate', label:'Your turn: press Slate',
+        check: () => look.theme === 'slate' });
+      await tsleep(600);
+      // close the panel so the whole hub shows in Slate
+      await tap('#settings-sheet .sheet-head .icon-btn', () => closeSheet('settings-sheet'));
+      spot(null);
+      say(11, 'Make it yours', 'This is Slate: dark, warm and calm. Every theme recolours the whole hub like this.');
+      await tsleep(2600);
+      say(11, 'Make it yours', 'Back to Clarity for the rest of the tour. You can switch any time from Appearance.');
+      await tap('#settings-btn', () => openSettings());
+      await tsleep(400);
+      spot(themeCard(DEFAULT_THEME), { pad:6 });
       await tap(themeCard(DEFAULT_THEME));
-      await tsleep(1200);
+      await tsleep(700);
+      await tap('#settings-sheet .sheet-head .icon-btn', () => closeSheet('settings-sheet'));
+      await tsleep(400);
     },
     after(){ if(look.theme !== DEFAULT_THEME) setTheme(DEFAULT_THEME); closeSheet('settings-sheet'); },
   },
@@ -1018,6 +1196,21 @@ const STEPS = [
       await tsleep(1500);
     },
     after(){ closeSheet('imp-sheet'); },
+  },
+  {
+    async play(){
+      say(13, 'Every section', 'One last thing. The line on the right edge opens a list of every section, with sub-sections tucked under the one they belong to.');
+      if(view !== 'hub') goHub();
+      spot('#sn-toggle', { pad:6 });
+      await beat(1100);
+      await press('#sn-toggle', { action: () => toggleSectionNav(true), pad:6, guide:true, tag:'Press the line', label:'Your turn: press the line',
+        check: () => q('#section-nav-wrap').classList.contains('open') });
+      await tsleep(450);
+      spot('#section-nav', { pad:4 });
+      say(13, 'Every section', 'Chemistry sits under School, just like on the map. Click any name to jump straight to it.');
+      await tsleep(2600);
+    },
+    after(){ toggleSectionNav(false); },
     last: true,
   },
 ];
@@ -1160,45 +1353,75 @@ async function replay(step, before, after){
   try{
     await step.play();
   }catch(e){
-    if(!(e instanceof StepSkip)) throw e;
+    if(!(e instanceof StepSkip) || tour.back) throw e;   // Back is handled by runStep
     tour.stepTok++;                   // fresh token for whatever comes next
     await restore(after);
   }finally{
     tour.replaying = false;
   }
 }
-async function runStep(step){
+/* leave a step because Back was pressed */
+function leaveBack(step){
+  unpoint();
+  tour.back = false; tour.fast = false; tour.replaying = false;
+  tour.stepTok++;
+  try{ if(step.after) step.after(); }catch(e){}
+  return 'back';
+}
+async function runStep(step, idx){
+  tour.idx = idx;
   const before = snapshot();
   tour.fast = false;
+  tour.back = false;
   cardMode('watch');
+  let skipped = false;
   try{
     await step.play();
+  }catch(e){
+    if(e instanceof StepSkip && tour.back) return leaveBack(step);
+    throw e;
   }finally{
-    const skipped = tour.fast;
+    skipped = tour.fast;
     tour.fast = false;
-    if(skipped && tour.on){ if(step.after) step.after(); return; }   // Next (mid-step): straight on
   }
+  if(skipped && tour.on){ if(step.after) step.after(); return 'next'; }   // Next (mid-step): straight on
   const after = snapshot();
 
   for(;;){
     cardMode('idle', step.last ? 'Finish' : 'Next');
-    const choice = await waitChoice();
+    const choice = await waitChoice(step.autoNext || AUTO_NEXT);
     if(choice === 'next') break;
+    if(choice === 'back') return leaveBack(step);
     cardMode('replay', step.last ? 'Finish' : 'Next');
-    await replay(step, before, after);
+    try{ await replay(step, before, after); }
+    catch(e){ if(e instanceof StepSkip && tour.back) return leaveBack(step); throw e; }
     if(tour.skipReplay) break;
   }
   if(step.after) step.after();
+  return 'next';
 }
 async function runTour(){
   tour.on = true;
   tour.token++;
+  tour.back = false;
   document.body.classList.add('touring');
+  q('#chat-input').readOnly = true;          // the tour types to Cosmo; the visitor does not
   q('#tour-block').hidden = false;
   q('#tour-btn').hidden = true;
   placeCursor(innerWidth / 2, innerHeight * 0.72, 0);
   try{
-    for(const step of STEPS) await runStep(step);
+    const befores = [];               // how the hub looked as each step began, for Back
+    let i = 0;
+    while(i < STEPS.length){
+      befores[i] = snapshot();
+      const res = await runStep(STEPS[i], i);
+      if(res === 'back'){
+        i = Math.max(0, i - 1);
+        await restore(befores[i]);
+        continue;
+      }
+      i++;
+    }
     endTour();
     showDone();
   }catch(e){
@@ -1210,12 +1433,19 @@ function endTour(){
   tour.token++;
   tour.replaying = false;
   tour.fast = false;
+  tour.back = false;
+  stopHint();
+  q('#tour-tag').hidden = true;
+  q('#tour-block').classList.remove('holed'); q('#tour-block').style.clipPath = '';
+  q('#tour-spot').classList.remove('guide');
+  extraSpot = null; q('#tour-spot2').hidden = true; q('#tour-tag2').hidden = true;
   wakeSleepers(new TourStop());
   if(tour.choice){ const c = tour.choice; tour.choice = null; try{ c('stop'); }catch(e){} }
   if(tour.pressing){ const p = tour.pressing; tour.pressing = null; p.done(null, new TourStop()); }
   cancelAnimationFrame(spotRaf); spotRaf = 0; spotTarget = null;
   ['#tour-spot', '#tour-cursor', '#tour-card', '#tour-block', '#tour-shade'].forEach(s => { q(s).hidden = true; });
   document.body.classList.remove('touring');
+  q('#chat-input').readOnly = false;
   if(drawing) commitStroke();
   closeAllUi();
   if(view !== 'hub') goHub();
@@ -1298,7 +1528,8 @@ document.addEventListener('keydown', e => {
   if(/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
   // Enter only moves on between steps, so it never skips a step by accident
   if(e.key === 'ArrowRight' || (e.key === 'Enter' && tour.choice)){ e.preventDefault(); tourNext(); }
-  else if(e.key === 'ArrowLeft' || e.key.toLowerCase() === 'r'){ e.preventDefault(); tourAgain(); }
+  else if(e.key === 'ArrowLeft'){ e.preventDefault(); tourBack(); }
+  else if(e.key.toLowerCase() === 'r'){ e.preventDefault(); tourAgain(); }
 }, true);
 
 

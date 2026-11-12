@@ -4832,11 +4832,58 @@ function renderTodoBadge(){
   document.getElementById('todo-btn').title = open.length
     ? 'To-dos & reminders: ' + open.length + ' open' + (due ? ', ' + due + ' due now' : '') : 'To-dos & reminders';
 }
+/* The section list behind the logo on the right: every section, with its
+   sub-sections indented under it, in the same order and colours as the map.
+   Press the logo to pull it out; click a name to open that section. The one you
+   are in is highlighted. Rebuilt only when something in it changed. */
+function toggleSectionNav(force){
+  const wrap = document.getElementById('section-nav-wrap');
+  if(!wrap) return;
+  const open = force == null ? !wrap.classList.contains('open') : !!force;
+  wrap.classList.toggle('open', open);
+  const btn = document.getElementById('sn-toggle');
+  btn.setAttribute('aria-expanded', String(open));
+  btn.setAttribute('aria-label', open ? 'Hide all sections' : 'Show all sections');
+  if(open) renderSectionNav();
+}
+// a click anywhere else puts the list away
+document.addEventListener('pointerdown', e => {
+  const wrap = document.getElementById('section-nav-wrap');
+  if(wrap && wrap.classList.contains('open') && !wrap.contains(e.target)) toggleSectionNav(false);
+});
+let sectionNavHtml = '';
+function renderSectionNav(){
+  const nav = document.getElementById('section-nav');
+  if(!nav) return;
+  const all = sortedBubbles();
+  const seen = new Set();
+  const row = (b, depth) => {
+    if(seen.has(b.id)) return '';                      // a broken parent loop can't repeat a section forever
+    seen.add(b.id);
+    const kids = all.filter(k => (parentOf(k) || {}).id === b.id);
+    const on = view === 'section' && activeBubbleId === b.id;
+    return `<li><button class="sn-item${on ? ' on' : ''}" style="--depth:${depth}" onclick="openSection('${esc(b.id)}'); toggleSectionNav(false)"
+        ${on ? 'aria-current="page"' : ''} title="${esc(b.name)}">
+        <span class="sn-dot tone-${esc(b.tone || 'none')}" aria-hidden="true"></span><span class="sn-name">${esc(b.name || 'Section')}</span>
+      </button>${kids.length ? `<ul class="sn-kids">${kids.map(k => row(k, depth + 1)).join('')}</ul>` : ''}</li>`;
+  };
+  const roots = all.filter(b => !parentOf(b));
+  let items = roots.map(b => row(b, 0)).join('');
+  all.forEach(b => { if(!seen.has(b.id)) items += row(b, 0); });   // anything caught in a parent loop still gets listed
+  const html =`<button class="sn-item sn-hub${view === 'hub' ? ' on' : ''}" onclick="goHub(); toggleSectionNav(false)" ${view === 'hub' ? 'aria-current="page"' : ''}>
+      <svg class="sn-logo" viewBox="0 0 100 100" aria-hidden="true"><use href="#wf-logo"/></svg><span class="sn-name">Hub</span>
+    </button>
+    <div class="sn-label">Sections</div>
+    ${all.length ? `<ul class="sn-list">${items}</ul>`
+                 : '<p class="sn-empty">No sections yet. Use “+ Section” to add one.</p>'}`;
+  if(html !== sectionNavHtml){ nav.innerHTML = html; sectionNavHtml = html; }
+}
 function render(){
   document.documentElement.classList.toggle('hub-mode', view === 'hub');   // locks the page scroll on the hub
   if(view === 'hub') renderHub(); else renderSection();
   scheduleMinimap();
   renderTodoBadge();
+  renderSectionNav();
   renderImportant();
   renderTrash();
   if(document.getElementById('tasks-sheet').classList.contains('open')) renderTasks();
@@ -4917,12 +4964,15 @@ document.addEventListener('keydown', e => {
     return;
   }
   if((e.metaKey || e.ctrlKey) && String(e.key).toLowerCase() === 'y' && !typing){ e.preventDefault(); doRedo(); return; }
-  if(e.key === 'Escape'){ closeModal(); closeHelper(); closeSheet('tasks-sheet'); closeSheet('imp-sheet'); closeSheet('trash-sheet'); closeSheet('settings-sheet'); } });
+  if(e.key === 'Escape'){ toggleSectionNav(false); closeModal(); closeHelper(); closeSheet('tasks-sheet'); closeSheet('imp-sheet'); closeSheet('trash-sheet'); closeSheet('settings-sheet'); } });
 
 
 /* the floating button is gone from view, but everything still marks it busy;
    mirror that onto the middle bubble so Cosmo visibly works */
 new MutationObserver(() => {
+  const busy = document.getElementById('helper-bubble').classList.contains('busy');
   const c = document.getElementById('bubble-center');
-  if(c) c.classList.toggle('busy', document.getElementById('helper-bubble').classList.contains('busy'));
+  if(c) c.classList.toggle('busy', busy);
+  const h = document.getElementById('cosmo-handle');          // the logo on the left edge works too
+  if(h) h.classList.toggle('busy', busy);
 }).observe(document.getElementById('helper-bubble'), { attributes:true, attributeFilter:['class'] });
