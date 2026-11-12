@@ -271,15 +271,22 @@ img{ max-width:100%; }
     --shadow-lg:0 10px 24px -8px rgba(0,0,0,0.6), 0 28px 56px -22px rgba(0,0,0,0.85);
     color-scheme: dark;
   }
+  /* Cream: cream paper with cocoa brown.
+       cream       — the paper, the grid, every sheet and panel
+       cocoa brown — Cosmo, buttons, the lines between bubbles, text and borders
+     Sections keep whatever colour they were given. */
   :root[data-theme="cream"]{
-    --grid-ink:#F7F1E4; --grid-fine:rgba(84,64,38,0.07); --grid-bold:rgba(84,64,38,0.14);
-    --bg:#F7F1E4; --ground:#F1E9D8; --surface:#FFFDF7; --surface-2:#F0E8D8; --border:#DFD3BC;
-    --text:#2A2318; --text-muted:#6D6250; --line:#C9BCA2;
-    --accent:#8A5A2B; --accent-soft:#F0E2CE; --accent-strong:#5E3C18;
+    --cocoa:#6B4433; --cocoa-deep:#3E271F;
+    --grid-ink:#F7F1E4; --grid-fine:rgba(62,39,31,0.07); --grid-bold:rgba(62,39,31,0.13);
+    --bg:#F7F1E4; --ground:#F1E9D8; --surface:#FFFDF7; --surface-2:#F0E8D8; --border:rgba(62,39,31,0.18);
+    --text:var(--cocoa-deep); --text-muted:#7A5A4C; --line:rgba(62,39,31,0.26);
+    --accent:var(--cocoa); --accent-soft:rgba(107,68,51,0.12); --accent-strong:var(--cocoa-deep);
+    --on-accent:#FBF1EB;            /* cream-white text on cocoa */
+    --cta:var(--cocoa); --cta-text:#FBF1EB; --cta-hover:#573628;
     --success:#4B7A43; --success-soft:#E6EFDC;
     --warning:#9A6A0C; --warning-soft:#F3E7CD;
     --danger:#A63A2A; --danger-soft:#F6E0D9;
-    --ink-default:#2A2318;
+    --ink-default:#3E271F;
     --shadow-sm:0 1px 2px rgba(74,58,34,0.07);
     --shadow:0 2px 5px rgba(74,58,34,0.07), 0 12px 28px -14px rgba(74,58,34,0.24);
     --shadow-lg:0 8px 20px -6px rgba(74,58,34,0.2), 0 24px 50px -20px rgba(74,58,34,0.32);
@@ -318,26 +325,37 @@ img{ max-width:100%; }
     --shadow-lg:0 10px 24px -8px rgba(0,0,0,0.6), 0 28px 56px -22px rgba(0,0,0,0.85);
     color-scheme: dark;
   }
-  /* Forest: pine (#1B4D3E) blended with emerald (#00563B) and deepened with
-     dark green (#043927) for the paper; emerald cards and bubbles, dark green
-     inner fills and button text,
-     soft white text and a pale mint accent */
+  /* Forest: oat milk and forest green.
+       oat milk     — the paper, the grid, every sheet and panel
+       forest green — Cosmo, buttons, the lines between bubbles, text and borders
+     Sections keep whatever colour they were given. */
   :root[data-theme="forest"]{
-    --grid-ink:#0B4734; --grid-fine:rgba(220,245,232,0.06); --grid-bold:rgba(220,245,232,0.13);
-    --bg:#0B4734; --ground:#00563B; --surface:#00563B; --surface-2:#043927; --border:rgba(220,245,232,0.20);
-    --text:#EEF7F2; --text-muted:#A9CDBE; --line:rgba(220,245,232,0.30);
-    --accent:#9EE6C2; --accent-soft:rgba(158,230,194,0.18); --accent-strong:#C6F2DC;
-    --on-accent:#043927;            /* dark green text on the pale mint accent */
-    --cta:#EEF7F2; --cta-text:#043927; --cta-hover:#D5EAE0;
-    --success:#9EF0B0; --success-soft:rgba(158,240,176,0.18);
-    --warning:#FFD36B; --warning-soft:rgba(255,211,107,0.2);
-    --danger:#FFA597; --danger-soft:rgba(255,165,151,0.2);
-    --ink-default:#EEF7F2;
-    --shadow-sm:0 1px 2px rgba(4,57,39,0.5);
-    --shadow:0 2px 6px rgba(2,30,20,0.4), 0 14px 30px -16px rgba(2,30,20,0.65);
-    --shadow-lg:0 10px 24px -8px rgba(2,30,20,0.55), 0 28px 56px -22px rgba(2,30,20,0.75);
-    color-scheme: dark;
+    --oat:#EDE3D1; --oat-light:#F7F1E6; --oat-deep:#E3D7C1;
+    --forest:#2C5A3F; --forest-deep:#1F3B2D;
+    --grid-ink:var(--oat); --grid-fine:rgba(31,59,45,0.06); --grid-bold:rgba(31,59,45,0.12);
+    --bg:var(--oat); --ground:var(--oat-deep); --surface:var(--oat-light); --surface-2:var(--oat-deep);
+    --border:rgba(31,59,45,0.18);
+    --text:var(--forest-deep); --text-muted:#5A6E5F; --line:rgba(31,59,45,0.26);
+    --accent:var(--forest); --accent-soft:rgba(44,90,63,0.12); --accent-strong:var(--forest-deep);
+    --on-accent:#FFF8EE;            /* oat-white text on forest green */
+    --cta:var(--forest); --cta-text:#FFF8EE; --cta-hover:#234A33;   /* buttons are forest green */
+    --success:#2F6B45; --success-soft:rgba(47,107,69,0.13);
+    --warning:#A66E05; --warning-soft:rgba(166,110,5,0.13);
+    --danger:#A8321F; --danger-soft:rgba(168,50,31,0.12);
+    --ink-default:#1F3B2D;
+    --lit:rgba(255,255,255,0.55); --shade:rgba(0,0,0,0.45); --halo:0.22;
+    --shadow-sm:0 1px 2px rgba(48,52,30,0.08);
+    --shadow:0 2px 5px rgba(48,52,30,0.08), 0 12px 28px -14px rgba(48,52,30,0.26);
+    --shadow-lg:0 8px 20px -6px rgba(48,52,30,0.2), 0 24px 50px -20px rgba(48,52,30,0.32);
+    color-scheme: light;
   }
+  /* sections keep their own colour, in deeper versions so the oat-milk names stay readable */
+  :root[data-theme="forest"] .tone-teal{   --tone:#1E7481; --tone-soft:#D6EEF1; }
+  :root[data-theme="forest"] .tone-amber{  --tone:#8F5E04; --tone-soft:#F8E8C8; }
+  :root[data-theme="forest"] .tone-violet{ --tone:#634AB1; --tone-soft:#E7E0FA; }
+  :root[data-theme="forest"] .tone-green{  --tone:#2D7A4C; --tone-soft:#D9F1E3; }
+  :root[data-theme="forest"] .tone-rose{   --tone:#B93F62; --tone-soft:#F9DDE6; }
+  :root[data-theme="forest"] .tone-blue{   --tone:#2961B2; --tone-soft:#DCE7FA; }
 
 
   /* =====================================================================
@@ -450,6 +468,10 @@ img{ max-width:100%; }
     background-size: var(--gs) var(--gs), var(--gs) var(--gs), var(--gsb) var(--gsb), var(--gsb) var(--gsb);
     background-position: var(--gx) var(--gy), var(--gx) var(--gy), var(--gx) var(--gy), var(--gx) var(--gy);
   }
+  /* Appearance → "Show grid lines" off: a plain background with no grid */
+  html.no-grid body::before{ background-image:none; }
+  .grid-toggle{ cursor:pointer; }
+  .grid-toggle input[type=checkbox]{ accent-color:var(--accent); }
   /* The sky is four stacked layers, each shifted by the camera at its own rate.
      Near stars slide further than far ones; the galactic band barely moves at
      all. That difference is the entire illusion of depth. */
@@ -584,9 +606,8 @@ img{ max-width:100%; }
   :root{ --link:color-mix(in srgb, var(--text) 42%, transparent); }
   :root[data-theme="snow"], :root[data-theme="iridescence"]{ --link:color-mix(in srgb, var(--text) 62%, transparent); }
   :root[data-theme="ascii"]{ --link:#FFFFFF; }          /* Horizon: solid white */
-  :root[data-theme="forest"]{ --link:#8B5A2B; }         /* Forest: tree-trunk brown */
-  :root[data-theme="forest"] .hub-links line{ stroke-width:2.2; }          /* a touch thicker, like branches, so the darker brown still reads */
-  :root[data-theme="forest"] .hub-links line.cosmo{ stroke-width:3.2; }
+  :root[data-theme="forest"]{ --link:var(--forest); }   /* Forest: solid forest-green lines */
+  :root[data-theme="cream"]{ --link:var(--cocoa); }     /* Cream: solid cocoa-brown lines */
   :root[data-theme="custom"]{ --link:color-mix(in srgb, var(--text) 80%, transparent); }
   .hub-links line{ stroke:var(--link); stroke-width:1.6; stroke-linecap:round; vector-effect:non-scaling-stroke; }
   /* lines into Cosmo, in the middle, read a little heavier than branch lines */
@@ -721,17 +742,13 @@ img{ max-width:100%; }
   .bubble.section.tone-none{
     background:var(--surface); border:1px solid var(--border); box-shadow:var(--shadow);
   }
-  /* Forest: every section is a leaf. Two rounded sides meet in pointed tips
-     (top right and bottom left), with a centre vein running tip to tip and
-     side veins branching off it toward the tip. The text stays upright; Cosmo
-     in the middle stays round. */
-  :root[data-theme="forest"] .bubble.section{ border-radius:92% 6%; }
-  :root[data-theme="forest"] .bubble.section::before{
-    content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:0;
-    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='rgba(235,250,240,0.32)' stroke-linecap='round'%3E%3Cpath d='M9 91 Q48 54 91 9' stroke-width='1.6'/%3E%3Cg stroke-width='0.9'%3E%3Cpath d='M26 74 Q22 58 26 44'/%3E%3Cpath d='M42 58 Q38 40 44 26'/%3E%3Cpath d='M58 42 Q56 26 62 14'/%3E%3Cpath d='M26 74 Q42 78 56 74'/%3E%3Cpath d='M42 58 Q60 62 74 56'/%3E%3Cpath d='M58 42 Q74 44 86 38'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  /* Forest: sections are solid forest-green bubbles (the colour slider runs
+     from 80% to full) with oat-milk labels */
+  :root[data-theme="forest"] .bubble.section:not(.tone-none){
+    --fill:color-mix(in srgb, var(--tone) calc(80% + var(--tint, 50) * 0.2%), var(--surface));
   }
-  :root[data-theme="forest"] .bubble.section.drop-target::after{ border-radius:92% 6%; }
-  :root[data-theme="forest"] .bubble.section .b-grip{ left:73%; top:73%; }   /* back onto the leaf's rounded edge */
+  :root[data-theme="forest"] .bubble.section:not(.tone-none) .b-name{ color:var(--oat-light); }
+  :root[data-theme="forest"] .bubble.section:not(.tone-none) .b-meta{ color:color-mix(in srgb, var(--oat-light) 80%, transparent); }
   /* Snow: a soft cap of fresh snow resting on top of every section, hugging the
      curve of the bubble, with a lumpy edge and a few drips hanging down. It
      moves and tilts with the bubble; Cosmo in the middle stays clear. */
@@ -790,7 +807,8 @@ img{ max-width:100%; }
   /* sections with no colour, and every section in Terminal, get a plain ring */
   .tone-none .b-ring{ border-color:rgba(255,255,255,0.22); }
   :root[data-theme="clarity"] .tone-none .b-ring,
-  :root[data-theme="cream"] .tone-none .b-ring, :root[data-theme="iridescence"] .tone-none .b-ring{ border-color:rgba(0,0,0,0.2); }
+  :root[data-theme="cream"] .tone-none .b-ring, :root[data-theme="iridescence"] .tone-none .b-ring,
+  :root[data-theme="forest"] .tone-none .b-ring{ border-color:rgba(0,0,0,0.2); }
 
   /* ---- and in space, all of that goes back to being a sun ---- */
   .hub-hint{ position:absolute; left:16px; bottom:14px; font-size:0.72rem; color:var(--text-muted); pointer-events:none; }
@@ -1107,12 +1125,6 @@ img{ max-width:100%; }
   .due{ font-family:var(--font-ui); font-variant-numeric:tabular-nums; font-size:0.7rem; color:var(--text-muted); }
   .due.today{ color:var(--warning); } .due.over{ color:var(--danger); }
 
-  .history-bar{
-    position:fixed; left:16px; top:calc(84px + env(safe-area-inset-top,0px)); z-index:45;
-    display:flex; gap:5px; padding:5px; border-radius:980px;
-    background:var(--surface);
-    border:1px solid var(--border); box-shadow:var(--shadow-sm);
-  }
   .hist-btn{
     width:32px; height:32px; display:flex; align-items:center; justify-content:center;
     border:none; background:transparent; color:var(--text-muted); border-radius:50%; cursor:pointer;
@@ -1192,8 +1204,6 @@ img{ max-width:100%; }
   @media (max-width:560px){
     /* on a phone the toolbar would sit on top of a bubble — dock it at the foot instead */
     .ink-bar{ left:8px; right:8px; top:auto; bottom:8px; padding:5px; gap:4px; justify-content:center; }
-    .history-bar{ left:10px; top:calc(74px + env(safe-area-inset-top,0px)); }
-    .sec-head{ padding-top:52px; }
     .hub-hint{ display:none; }
     .ink-btn{ padding:5px 8px; font-size:0.72rem; }
     .ink-size{ display:none; }
@@ -1334,3 +1344,121 @@ img{ max-width:100%; }
     #tc-body{ font-size:0.84rem; }
     .tw-credit{ position:static; margin-top:28px; }
   }
+
+/* ===================== GLASS =====================
+   The original layout, in frosted glass: the tool bar under the greeting,
+   the zoom bar, panels, sheets, dialogs and bubbles are see-through panes
+   of the theme's own surface colour, blurring whatever sits behind them, with a
+   thin light rim and a soft sheen across the top. Each theme keeps its colours;
+   the glass is mixed from them. Comes last so it wins over the rules above. */
+:root{
+  --glass:color-mix(in srgb, var(--surface) 52%, transparent);          /* bars, buttons, panels */
+  --glass-strong:color-mix(in srgb, var(--surface) 86%, transparent);   /* sheets and dialogs, which hold text */
+  --glass-line:color-mix(in srgb, var(--text) 13%, transparent);
+  --glass-sheen:linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.025) 38%, rgba(255,255,255,0) 60%);
+  --glass-hi:inset 0 1px 0 rgba(255,255,255,0.16), inset 0 0 0 1px rgba(255,255,255,0.025);
+  --glass-blur:blur(22px) saturate(1.5);
+  --glass-blur-lg:blur(34px) saturate(1.6);
+}
+/* people who ask their system for less transparency get solid panels */
+@media (prefers-reduced-transparency: reduce){
+  :root{ --glass:var(--surface); --glass-strong:var(--surface); }
+}
+
+/* Glass needs something behind it to blur. Every theme gets two soft pools of
+   its own accent colour under the grid, fixed to the window. */
+body{
+  background-image:
+    radial-gradient(44vmax 36vmax at 6% -4%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 72%),
+    radial-gradient(40vmax 32vmax at 104% 104%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 72%),
+    radial-gradient(30vmax 24vmax at 88% 6%, color-mix(in srgb, var(--text) 6%, transparent), transparent 72%);
+  background-attachment:fixed;
+}
+
+/* ---- bars and panels ---- */
+.tool-bar, .ink-bar, .zoom-bar, .minimap, .activity, .thought, .widget{
+  background:var(--glass-sheen), var(--glass);
+  border:1px solid var(--glass-line);
+  -webkit-backdrop-filter:var(--glass-blur); backdrop-filter:var(--glass-blur);
+  box-shadow:var(--glass-hi), var(--shadow);
+}
+.widget{ border-radius:22px; }
+.widget:hover{ border-color:color-mix(in srgb, var(--accent) 34%, var(--glass-line)); }
+.w-head{ border-bottom-color:var(--glass-line); }
+
+/* ---- sheets, dialogs and cards that hold text ---- */
+.sheet-card, .modal-card, .tw-card, #tour-card, #toast{
+  background:var(--glass-sheen), var(--glass-strong);
+  border:1px solid var(--glass-line);
+  -webkit-backdrop-filter:var(--glass-blur-lg); backdrop-filter:var(--glass-blur-lg);
+  box-shadow:var(--glass-hi), var(--shadow-lg);
+}
+#toast{ color:var(--text); }
+.modal-card{ border-radius:24px; }
+/* sheets float as a pane beside the edge instead of a wall */
+.sheet-card{ top:12px; right:12px; height:calc(100% - 24px); width:min(440px, calc(100vw - 24px));
+  border-radius:24px; overflow:hidden; }
+.sheet-head, .modal-head{ border-bottom-color:var(--glass-line); }
+.sheet-foot{ border-top-color:var(--glass-line); }
+.sheet-back, .modal-back{ background:rgba(10,14,20,0.26);
+  -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); }
+
+/* ---- buttons and fields; the primary button stays solid so it leads ---- */
+.btn:not(.btn-primary):not(.btn-ghost):not(.btn-danger){
+  background:var(--glass); border-color:var(--glass-line);
+  -webkit-backdrop-filter:blur(14px) saturate(1.4); backdrop-filter:blur(14px) saturate(1.4);
+}
+.btn:not(.btn-primary):not(.btn-ghost):not(.btn-danger):hover{ border-color:var(--accent); }
+.input, .textarea, .select{ background:color-mix(in srgb, var(--surface) 45%, transparent); border-color:var(--glass-line); }
+
+/* ---- bubbles: Cosmo and plain sections are clear glass; coloured sections get a deeper frost ---- */
+.bubble.center{
+  background:linear-gradient(168deg, color-mix(in srgb, var(--accent) 16%, transparent) 0%, transparent 70%),
+    var(--glass-sheen), var(--glass);
+  border-color:color-mix(in srgb, var(--accent) 34%, var(--glass-line));
+  -webkit-backdrop-filter:var(--glass-blur); backdrop-filter:var(--glass-blur);
+}
+.bubble.section.tone-none{
+  background:var(--glass-sheen), var(--glass); border-color:var(--glass-line);
+  -webkit-backdrop-filter:var(--glass-blur); backdrop-filter:var(--glass-blur);
+}
+.bubble.section{ -webkit-backdrop-filter:blur(14px) saturate(1.4); backdrop-filter:blur(14px) saturate(1.4); }
+
+/* ---- the tool bar: one glass pill centred under the greeting ----
+   App-wide buttons on the left and right, the map's Move / Draw / Erase in the
+   middle (with the pen colours and size opening beside them while drawing). */
+.tool-row{ display:flex; justify-content:center; margin:4px 0 12px; flex:0 0 auto; position:relative; z-index:5; }
+.tool-bar{ display:flex; align-items:center; gap:4px; padding:6px 8px; border-radius:999px; max-width:100%;
+  min-width:min(820px, 100%); }
+/* the bar is long: its groups spread out, and the spacers give way when drawing tools open */
+.tool-grow{ flex:1 1 auto; min-width:14px; }
+.tool-btn{ position:relative; flex:0 0 auto; width:38px; height:38px; display:flex; align-items:center; justify-content:center;
+  border:none; border-radius:50%; background:transparent; color:var(--text-muted); cursor:pointer;
+  transition:background .15s var(--ease-quick), color .15s var(--ease-quick), transform .16s var(--ease-pop); }
+.tool-bar .alert-btn{ width:38px; height:38px; border:none; background:transparent; box-shadow:none;
+  -webkit-backdrop-filter:none; backdrop-filter:none; }
+.tool-btn:hover:not(:disabled){ background:color-mix(in srgb, var(--text) 9%, transparent); color:var(--text); }
+.tool-btn:active:not(:disabled){ transform:scale(0.92); }
+.tool-btn[hidden]{ display:none; }
+.tool-bar #imp-btn{ color:var(--warning); }
+.tool-bar #imp-btn.alerting{ color:var(--danger); }
+.tool-home, .tool-home:hover{ color:var(--accent) !important; }
+.tool-sep{ flex:0 0 auto; width:1px; height:22px; margin:0 4px; background:var(--glass-line); }
+/* Move / Draw / Erase sit inside the bar instead of floating over the map */
+.tool-bar .ink-bar{ position:static; display:flex; flex-wrap:nowrap; align-items:center; gap:4px; padding:0; margin:0;
+  background:none; border:none; border-radius:0; box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none; }
+.tool-bar #ink-tools{ flex-wrap:nowrap !important; }
+/* the map tools only mean something on the map */
+html:not(.hub-mode) .tool-bar .ink-bar, html:not(.hub-mode) .tool-sep-map{ display:none; }
+/* narrow screens: the bar scrolls sideways rather than wrapping */
+@media (max-width: 700px){
+  .tool-bar{ overflow-x:auto; scrollbar-width:none; justify-content:flex-start; min-width:0; width:100%; }
+  .tool-grow{ min-width:4px; }
+  .tool-bar::-webkit-scrollbar{ display:none; }
+}
+@media (max-width: 560px){
+  .tool-btn, .tool-bar .alert-btn{ width:34px; height:34px; }
+  .tool-sep{ margin:0 2px; }
+  /* room is tight: the logo goes (sections have their own "‹ Hub") so the warning button's badge stays in view */
+  .tool-home, .tool-home + .tool-sep{ display:none; }
+}

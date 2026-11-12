@@ -19,7 +19,8 @@ async function init(){
         if(doc){
           look = { theme: doc.theme || DEFAULT_THEME, font: doc.font || 'publicsans',
                    scale: doc.scale || 100, textColor: doc.textColor || '',
-                   bgTone: doc.bgTone || 'dark', bgDim: typeof doc.bgDim === 'number' ? doc.bgDim : 20 };   // "Your image" settings
+                   bgTone: doc.bgTone || 'dark', bgDim: typeof doc.bgDim === 'number' ? doc.bgDim : 20,   // "Your image" settings
+                   noGrid: !!doc.noGrid };                                                           // "Show grid lines" off
           applyLook(look);
           if(document.getElementById('settings-sheet').classList.contains('open')) renderSettings();
         }

@@ -525,9 +525,6 @@ function layoutHub(){
    the app has to know the tree exists. */
 function drawLinks(spots){
   let lines = '';
-  // Forest's sections are leaves, narrower than the circle they sit in, so the
-  // lines run on into the leaf (hidden under it) instead of stopping in mid-air
-  const leafIn = document.documentElement.getAttribute('data-theme') === 'forest' ? 0.4 : 1;
   sortedBubbles().forEach(b => {
     const el = bubbleEls.get(b.id);
     let from = el && el._pos;
@@ -540,12 +537,12 @@ function drawLinks(spots){
       const pel = bubbleEls.get(p.id);
       to = pel && pel._pos;
       if(!to && spots && spots[p.id]) to = { x:spots[p.id][0], y:spots[p.id][1] };
-      tr = radiusOf(p) * leafIn;
+      tr = radiusOf(p);
     } else {
       to = { x:0, y:0 }; tr = R_CEN;
     }
     if(!to) return;
-    lines += linkLine(from, radiusOf(b) * leafIn, to, tr, !p);
+    lines += linkLine(from, radiusOf(b), to, tr, !p);
   });
   const svg = document.getElementById('hub-links');
   if(svg) svg.innerHTML = lines;
@@ -896,10 +893,10 @@ function nudgeClear(x, y, selfId){
 const THEMES = [
   { id:'clarity',     name:'Clarity',      ink:'#FFFFFF', line:'rgba(0,0,0,0.09)',       dot:'#0071E3' },
   { id:'claritydark', name:'Clarity Space', ink:'#000000', line:'rgba(255,255,255,0.10)', dot:'#0A84FF' },
-  { id:'cream',     name:'Cream',      ink:'#F7F1E4', line:'rgba(84,64,38,0.16)',    dot:'#8A5A2B' },
+  { id:'cream',     name:'Cream',      ink:'#F7F1E4', line:'rgba(107,68,51,0.24)',   dot:'#6B4433' },
   { id:'blueprint', name:'Blueprint',  ink:'#0E2150', line:'rgba(165,216,255,0.32)', dot:'#38BDF8' },
   { id:'slate',     name:'Slate',      ink:'#151719', line:'rgba(255,255,255,0.09)', dot:'#C08B5C' },
-  { id:'forest',    name:'Forest',     ink:'#0B4734', line:'rgba(220,245,232,0.22)', dot:'#9EE6C2' },
+  { id:'forest',    name:'Forest',     ink:'#EDE3D1', line:'rgba(44,90,63,0.30)',    dot:'#2C5A3F' },
   { id:'warp',      name:'Warp',       ink:'#120F17', line:'rgba(199,85,247,0.22)',  dot:'#C755F7' },
   { id:'mono',      name:'Mono',       ink:'#000000', line:'rgba(146,146,146,0.30)', dot:'#FFFFFF' },
   { id:'ascii',     name:'Horizon',    ink:'#050B24', line:'rgba(56,189,248,0.35)',  dot:'#38BDF8' },
@@ -1809,7 +1806,7 @@ const snowSky = (() => {
 })();
 window.wfSnow = snowSky;
 
-const RETIRED_THEMES = { glass:'clarity', glassdark:'claritydark', orbit:'clarity', prism:'clarity', dark:'claritydark', paper:'clarity' };
+const RETIRED_THEMES = { glass:'clarity', glassdark:'claritydark', orbit:'clarity', prism:'clarity', dark:'claritydark', paper:'clarity', cocoa:'cream' };
 
 let look = { theme:DEFAULT_THEME, font:'publicsans', scale:100, textColor:'' };
 
@@ -1826,6 +1823,7 @@ function applyLook(l){
   root.style.setProperty('--font-ui', f.stack);
   root.style.setProperty('--font-display', f.stack);
   root.style.setProperty('--font-scale', (Number(l.scale) || 100) / 100);
+  root.classList.toggle('no-grid', !!l.noGrid);       // Appearance → "Show grid lines"
   const themeInk = getComputedStyle(root).getPropertyValue('--ink-default').trim();
   if(themeInk && (inkColor === '#E7EBEC' || inkColor === '#12161A')){
     inkColor = themeInk; renderSwatches();
@@ -1910,7 +1908,7 @@ function setBgDim(v){ look.bgDim = Number(v) || 0; saveLook(); }
    colour and, with a picture, the picture and its tint. It shows up in the
    theme grid like the built-in themes. Like everything in the demo it lasts
    for this visit only; a refresh starts fresh. */
-const LOOK_KEYS = ['theme', 'font', 'scale', 'textColor', 'bgTone', 'bgDim'];
+const LOOK_KEYS = ['theme', 'font', 'scale', 'textColor', 'bgTone', 'bgDim', 'noGrid'];
 let presets = [];
 const savePresets = () => {};      // demo: kept for this visit only
 const presetBg = id => { const p = presets.find(x => x.id === id); return p ? p.bg || null : null; };
@@ -1976,6 +1974,7 @@ document.addEventListener('paste', e => {
 function setFont(id){ look.font = id; saveLook(); }
 function setScale(v){ look.scale = Number(v) || 100; saveLook(); }
 function setTextColor(col){ look.textColor = col; saveLook(); }
+function setGrid(show){ look.noGrid = !show; saveLook(); }
 function resetLook(){ look = { theme: look.theme, font:'publicsans', scale:100, textColor:'' }; saveLook(); }
 function openSettings(){ openSheet('settings-sheet'); renderSettings(); }
 function renderSettings(){
@@ -2014,6 +2013,8 @@ function renderSettings(){
     const f = FONTS.find(x => x.id === look.font) || FONTS[0];
     sample.style.fontFamily = f.stack;
   }
+  const gridBox = document.getElementById('set-grid');
+  if(gridBox) gridBox.checked = !look.noGrid;
   const size = document.getElementById('set-size');
   if(size) size.value = look.scale;
   const read = document.getElementById('size-read');
